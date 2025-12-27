@@ -1,0 +1,17 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres:14
+    container_name: chat_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: chat_user
+      POSTGRES_PASSWORD: chat_pass
+      POSTGRES_DB: chat_app
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+volumes:
+  pg_data:
