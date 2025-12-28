@@ -1,0 +1,632 @@
+// ============================================
+// CHAT APPLICATION - COMPLETE PRISMA SCHEMA
+// ============================================
+// Purpose: MVP for 1-on-1 messaging, extensible to groups
+// Database: PostgreSQL 12+
+// ORM: Prisma 5+
+// 
+// Design Principles:
+// - Start simple (1-on-1 chats)
+// - Design for future (groups, reactions, editing)
+// - Performance first (proper indexes)
+// - Type safety (TypeScript generation)
+// ============================================
+
+generator client {
+  provider = "prisma-client-js"
+  // Generates TypeScript types automatically
+  // Run: npx prisma generate
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // Example: postgresql://username:password@localhost:5432/chatapp
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+/// User's online presence status
+/// Updated when user logs in/out or becomes inactive
+enum UserStatus {
+  online  // User is actively using the app
+  offline // User is not connected
+  away    // User is idle (inactive for 5-10 minutes)
+}
+
+/// User's role in a conversation
+/// For 1-on-1: both users are 'member'
+/// For groups: at least one user must be 'admin'
+enum MemberRole {
+  admin  // Can add/remove members, change group settings
+  member // Regular participant
+}
+
+// ============================================
+// MODEL: USER
+// ============================================
+
+/// Stores user account information, authentication, and presence
+/// 
+/// Relationships:
+/// - One user can send many messages
+/// - One user can be in many conversations (via conversation_members)
+/// - One user can create many conversations
+model User {
+  // ==================== PRIMARY KEY ====================
+  /// Auto-incrementing unique identifier
+  /// Used as foreign key in other tables
+  id           Int      @id @default(autoincrement())
+
+  // ==================== AUTHENTICATION ====================
+  /// Unique username for login (3-255 chars)
+  /// Used for @ mentions and user search
+  /// Constraints enforced in app: lowercase, alphanumeric + underscores
+  username     String   @unique @db.VarChar(255)
+
+  /// Unique email address for login and notifications
+  /// Format validated via CHECK constraint (see migration SQL)
+  /// Example: "alice@example.com"
+  email        String   @unique @db.VarChar(255)
+
+  /// Hashed password (NEVER store plain text!)
+  /// Use bcrypt (cost 10+) or Argon2id
+  /// Example: "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"
+  /// Length: ~60 chars for bcrypt, ~97 for Argon2
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+
+  // ==================== PROFILE ====================
+  /// User's display name (can include spaces, emojis)
+  /// Optional: if NULL, use username as fallback in UI
+  /// Example: "Alice Smith", "Bob 👨‍💻"
+  displayName  String?  @map("display_name") @db.VarChar(255)
+
+  /// URL to user's profile picture
+  /// Optional: if NULL, use default avatar
+  /// Example: "https://cdn.example.com/avatars/user_1.jpg"
+  /// Store URL, not the actual image bytes
+  avatarUrl    String?  @map("avatar_url") @db.VarChar(500)
+
+  // ==================== PRESENCE ====================
+  /// Current online status
+  /// Default: offline (user must explicitly go online)
+  /// Updated on login, logout, and activity
+  status       UserStatus @default(offline)
+
+  /// Last time user was active (any action)
+  /// Updated on: login, sending message, reading messages
+  /// Used to show "Last seen 5 minutes ago" for offline users
+  lastSeen     DateTime @default(now()) @map("last_seen")
+
+  // ==================== TIMESTAMPS ====================
+  /// When account was created (immutable)
+  /// Used for: registration date, account age
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  /// Last time profile was updated (auto-updated)
+  /// Changes on any UPDATE to this record
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // ==================== RELATIONSHIPS ====================
+  /// Messages sent by this user
+  /// If user is deleted, messages remain with senderId = null
+  /// Shows as "[Deleted User]" in UI
+  sentMessages        Message[]              @relation("SentMessages")
+
+  /// Conversations this user is a member of
+  /// Many-to-many relationship via conversation_members junction table
+  conversationMembers ConversationMember[]
+
+  /// Conversations created by this user
+  /// If user is deleted, conversation remains (createdBy = null)
+  createdConversations Conversation[]        @relation("ConversationCreator")
+
+  // ==================== INDEXES ====================
+  /// Index on email for fast login queries
+  /// Query: SELECT * FROM users WHERE email = ?
+  @@index([email])
+
+  /// Index on username for user search and @ mentions
+  /// Query: SELECT * FROM users WHERE username ILIKE ?
+  @@index([username])
+
+  /// Index on status to filter online/offline users
+  /// Query: SELECT * FROM users WHERE status = 'online'
+  @@index([status])
+
+  /// Index on lastSeen for "recently active" queries
+  /// Query: SELECT * FROM users WHERE last_seen > ? ORDER BY last_seen DESC
+  @@index([lastSeen])
+
+  // ==================== TABLE CONFIG ====================
+  @@map("users")
+}
+
+// ============================================
+// MODEL: CONVERSATION
+// ============================================
+
+/// Container for messages (supports both 1-on-1 and group chats)
+/// 
+/// Design:
+/// - 1-on-1: is_group = false, name = null, 2 members
+/// - Group: is_group = true, name = required, 3+ members
+/// 
+/// This single table approach eliminates need for separate tables
+/// and makes queries simpler
+model Conversation {
+  // ==================== PRIMARY KEY ====================
+  /// Auto-incrementing unique identifier
+  id        Int      @id @default(autoincrement())
+
+  // ==================== CONVERSATION TYPE ====================
+  /// Distinguishes between direct messages and group chats
+  /// false = 1-on-1 conversation (exactly 2 members)
+  /// true = group chat (3 or more members)
+  /// Default: false (most conversations start as 1-on-1)
+  isGroup   Boolean  @default(false) @map("is_group")
+
+  /// Group name (required for groups, null for 1-on-1)
+  /// For 1-on-1: null (UI shows other user's name instead)
+  /// For groups: "Engineering Team", "Project Alpha", etc.
+  /// Constraint: must be NOT NULL if isGroup = true (enforced via CHECK)
+  name      String?  @db.VarChar(255)
+
+  // ==================== METADATA ====================
+  /// User who created this conversation
+  /// Optional: if creator deletes account, conversation persists
+  /// Used for: admin privileges, audit trail
+  createdBy Int?     @map("created_by")
+
+  /// When conversation was created
+  createdAt DateTime @default(now()) @map("created_at")
+
+  /// Last time a message was sent in this conversation
+  /// CRITICAL for sorting conversation list by recent activity!
+  /// Updated automatically via trigger when message inserted
+  /// Query: SELECT * FROM conversations ORDER BY updated_at DESC
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  // ==================== RELATIONSHIPS ====================
+  /// User who created this conversation
+  /// If creator deleted: createdBy becomes null, conversation remains
+  creator User?                @relation("ConversationCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  /// Users who are members of this conversation
+  /// Many-to-many relationship via conversation_members junction table
+  /// For 1-on-1: exactly 2 members
+  /// For groups: 3 or more members
+  members ConversationMember[]
+
+  /// Messages in this conversation
+  /// If conversation deleted: all messages deleted (CASCADE)
+  messages Message[]
+
+  // ==================== INDEXES ====================
+  /// Index on updatedAt for sorting conversation list by recent activity
+  /// THIS IS THE MOST IMPORTANT QUERY IN A CHAT APP!
+  /// Query: SELECT * FROM conversations 
+  ///        WHERE id IN (user's conversations) 
+  ///        ORDER BY updated_at DESC
+  /// DESC sort means most recent conversations appear first
+  @@index([updatedAt(sort: Desc)])
+
+  /// Index on createdBy for finding conversations created by a user
+  /// Query: SELECT * FROM conversations WHERE created_by = ?
+  @@index([createdBy])
+
+  /// Index on isGroup for filtering conversation types
+  /// Query: SELECT * FROM conversations WHERE is_group = false
+  /// Useful for showing only direct messages or only groups
+  @@index([isGroup])
+
+  // ==================== TABLE CONFIG ====================
+  @@map("conversations")
+}
+
+// ============================================
+// MODEL: CONVERSATION_MEMBER
+// ============================================
+
+/// Junction table linking users to conversations (many-to-many)
+/// 
+/// Purpose:
+/// - Track which users are in which conversations
+/// - Store per-user metadata (role, join time, read status)
+/// - Enable efficient queries for "user's conversations" and "conversation's members"
+/// 
+/// Composite Primary Key: (conversationId, userId)
+/// - Ensures a user can only be in a conversation once
+/// - No duplicate memberships possible
+model ConversationMember {
+  // ==================== COMPOSITE PRIMARY KEY ====================
+  /// Which conversation this membership belongs to
+  /// If conversation deleted: membership deleted (CASCADE)
+  conversationId Int      @map("conversation_id")
+
+  /// Which user is a member
+  /// If user deleted: membership deleted (CASCADE)
+  userId         Int      @map("user_id")
+
+  // ==================== MEMBERSHIP METADATA ====================
+  /// User's role in the conversation
+  /// For 1-on-1: both users are 'member'
+  /// For groups: at least one user must be 'admin'
+  /// Admin can: add/remove members, change group name, promote/demote members
+  role           MemberRole @default(member)
+
+  /// When user joined/was added to conversation
+  /// For 1-on-1: both users have same joinedAt (conversation creation time)
+  /// For groups: can be different for each member
+  /// Used to: show "Bob joined 2 days ago", filter messages after join date
+  joinedAt       DateTime @default(now()) @map("joined_at")
+
+  /// Last time user read messages in this conversation
+  /// CRITICAL for calculating unread message counts!
+  /// Default: epoch (1970-01-01) = all messages are unread initially
+  /// Updated when: user opens conversation, reads messages
+  /// Unread count = messages WHERE created_at > lastReadAt AND senderId != userId
+  lastReadAt     DateTime @default(dbgenerated("'1970-01-01 00:00:00'::timestamp")) @map("last_read_at")
+
+  // ==================== RELATIONSHIPS ====================
+  /// The conversation this membership belongs to
+  /// ON DELETE CASCADE: if conversation deleted, remove membership
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  /// The user who is a member
+  /// ON DELETE CASCADE: if user deleted, remove from all conversations
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // ==================== COMPOSITE PRIMARY KEY ====================
+  /// Composite primary key prevents duplicate memberships
+  /// A user can only be in a conversation once
+  /// Examples:
+  /// ✅ Allowed: (conv_1, user_5), (conv_1, user_10)
+  /// ❌ Blocked: (conv_1, user_5) again - duplicate!
+  @@id([conversationId, userId])
+
+  // ==================== INDEXES ====================
+  /// Index on userId for finding all conversations a user is in
+  /// THIS IS A CRITICAL QUERY: "Show me my conversation list"
+  /// Query: SELECT conversation_id FROM conversation_members WHERE user_id = ?
+  /// Used on: every app open, every conversation list refresh
+  @@index([userId])
+
+  /// Index on conversationId for finding all members of a conversation
+  /// Query: SELECT user_id FROM conversation_members WHERE conversation_id = ?
+  /// Used for: showing member list, checking permissions
+  @@index([conversationId])
+
+  /// Index on lastReadAt for calculating unread counts
+  /// Query: SELECT COUNT(*) FROM messages 
+  ///        WHERE conversation_id = ? AND created_at > last_read_at
+  /// Used for: unread badge counts
+  @@index([lastReadAt])
+
+  // ==================== TABLE CONFIG ====================
+  @@map("conversation_members")
+}
+
+// ============================================
+// MODEL: MESSAGE
+// ============================================
+
+/// Stores all chat messages
+/// 
+/// Design decisions:
+/// - senderId is nullable (preserve history if user deletes account)
+/// - content is TEXT (supports long messages, max 10000 chars for MVP)
+/// - createdAt + id used together for guaranteed ordering
+/// 
+/// Performance critical: This table grows FAST!
+/// - Proper indexes are ESSENTIAL
+/// - Consider partitioning by date when >100M messages
+model Message {
+  // ==================== PRIMARY KEY ====================
+  /// Auto-incrementing unique identifier
+  /// Used with createdAt for guaranteed message ordering
+  /// Even if two messages have identical timestamps, id provides tiebreaker
+  id             Int      @id @default(autoincrement())
+
+  // ==================== MESSAGE LOCATION ====================
+  /// Which conversation this message belongs to
+  /// Cannot be null - every message must be in a conversation
+  /// If conversation deleted: message deleted (CASCADE)
+  conversationId Int      @map("conversation_id")
+
+  // ==================== MESSAGE SENDER ====================
+  /// Who sent this message
+  /// NULLABLE: if user deletes account, message remains
+  /// When null: UI shows "[Deleted User]" or similar
+  /// Design decision: preserve message history even if sender leaves
+  senderId       Int?     @map("sender_id")
+
+  // ==================== MESSAGE CONTENT ====================
+  /// The actual message text
+  /// Type: TEXT (unlimited length in PostgreSQL)
+  /// Constraints (enforced via CHECK in migration):
+  ///   - NOT NULL (must have content)
+  ///   - NOT EMPTY: LENGTH(TRIM(content)) > 0
+  ///   - MAX LENGTH: 10,000 characters for MVP
+  /// Security: MUST sanitize before displaying (prevent XSS)
+  content        String   @db.Text
+
+  // ==================== TIMESTAMPS ====================
+  /// When message was sent
+  /// Precision: microseconds (e.g., 2025-12-28 14:30:45.123456)
+  /// CRITICAL: used with id for guaranteed chronological ordering
+  /// ORDER BY created_at ASC, id ASC ensures correct message order
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  /// Last time message was modified
+  /// For MVP: same as createdAt (no editing yet)
+  /// Future: if updatedAt > createdAt, show "Edited" indicator
+  /// Auto-updated on any UPDATE to this record
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // ==================== RELATIONSHIPS ====================
+  /// The conversation this message belongs to
+  /// ON DELETE CASCADE: if conversation deleted, delete all its messages
+  /// This ensures no orphaned messages
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  /// The user who sent this message
+  /// ON DELETE SET NULL: if user deleted, message remains but sender becomes null
+  /// This preserves message history for other users
+  sender       User?        @relation("SentMessages", fields: [senderId], references: [id], onDelete: SetNull)
+
+  // ==================== INDEXES ====================
+  /// 🔥 MOST IMPORTANT INDEX IN THE ENTIRE SCHEMA! 🔥
+  /// 
+  /// Composite index for fetching conversation messages
+  /// Covers: conversation_id, created_at DESC, id DESC
+  /// 
+  /// THIS IS THE #1 MOST COMMON QUERY IN A CHAT APP:
+  /// Query: SELECT * FROM messages 
+  ///        WHERE conversation_id = ?
+  ///        ORDER BY created_at DESC, id DESC 
+  ///        LIMIT 50
+  /// 
+  /// Why this index is CRITICAL:
+  /// - Without it: database scans ENTIRE messages table (SLOW!)
+  /// - With it: database jumps directly to conversation's messages (FAST!)
+  /// 
+  /// Performance impact:
+  /// - Without index: 500-5000ms (for 1M+ messages)
+  /// - With index: 1-10ms (100-1000x faster!)
+  /// 
+  /// DESC sort because we want newest messages first in UI
+  /// Then reverse in application if showing oldest-first
+  @@index([conversationId, createdAt(sort: Desc), id(sort: Desc)])
+
+  /// Index on senderId for finding all messages by a user
+  /// Query: SELECT * FROM messages WHERE sender_id = ?
+  /// Used for: moderation, user's message history
+  @@index([senderId])
+
+  /// Index on createdAt for time-based queries
+  /// Query: SELECT * FROM messages WHERE created_at > ?
+  /// Used for: recent messages across all conversations, analytics
+  @@index([createdAt(sort: Desc)])
+
+  // ==================== TABLE CONFIG ====================
+  @@map("messages")
+}
+
+// ============================================
+// PRISMA LIMITATIONS & WORKAROUNDS
+// ============================================
+//
+// Prisma doesn't support all PostgreSQL features in schema.
+// After running migration, apply these via raw SQL:
+//
+// 1. CHECK CONSTRAINTS:
+//    - users.username: LENGTH >= 3
+//    - users.email: valid email format regex
+//    - messages.content: NOT EMPTY, LENGTH <= 10000
+//    - conversations: if isGroup=true then name IS NOT NULL
+//
+// 2. TRIGGERS:
+//    - update_conversation_timestamp(): updates conversations.updated_at
+//      when new message inserted
+//
+// 3. FUNCTIONS:
+//    - get_or_create_direct_conversation(user1_id, user2_id): 
+//      finds existing 1-on-1 or creates new one
+//
+// 4. VIEWS:
+//    - user_conversations: pre-computed conversation list with unread counts
+//
+// See migration SQL file or documentation for implementation.
+//
+// ============================================
+
+// ============================================
+// USAGE EXAMPLES (in application code)
+// ============================================
+//
+// import { PrismaClient } from '@prisma/client'
+// const prisma = new PrismaClient()
+//
+// // Get user's conversations
+// const conversations = await prisma.conversationMember.findMany({
+//   where: { userId: 1 },
+//   include: {
+//     conversation: {
+//       include: {
+//         messages: {
+//           take: 1,
+//           orderBy: { createdAt: 'desc' }
+//         }
+//       }
+//     }
+//   }
+// })
+//
+// // Send message
+// const message = await prisma.message.create({
+//   data: {
+//     conversationId: 1,
+//     senderId: 5,
+//     content: 'Hello!'
+//   }
+// })
+//
+// // Get messages (with proper ordering!)
+// const messages = await prisma.message.findMany({
+//   where: { conversationId: 1 },
+//   orderBy: [
+//     { createdAt: 'desc' },
+//     { id: 'desc' }
+//   ],
+//   take: 50,
+//   include: {
+//     sender: {
+//       select: {
+//         id: true,
+//         username: true,
+//         displayName: true,
+//         avatarUrl: true
+//       }
+//     }
+//   }
+// })
+//
+// // Mark as read
+// await prisma.conversationMember.update({
+//   where: {
+//     conversationId_userId: {
+//       conversationId: 1,
+//       userId: 5
+//     }
+//   },
+//   data: {
+//     lastReadAt: new Date()
+//   }
+// })
+//
+// ============================================
+
+// ============================================
+// FUTURE EXTENSIBILITY (Not in MVP)
+// ============================================
+//
+// When you need these features, just add to schema
+// and run: npx prisma migrate dev --name add_feature_name
+//
+// MESSAGE REACTIONS:
+// model MessageReaction {
+//   id        Int      @id @default(autoincrement())
+//   messageId Int      @map("message_id")
+//   userId    Int      @map("user_id")
+//   reaction  String   @db.VarChar(50) // '👍', '❤️', '😂'
+//   createdAt DateTime @default(now()) @map("created_at")
+//
+//   message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+//   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+//
+//   @@unique([messageId, userId, reaction])
+//   @@index([messageId])
+//   @@map("message_reactions")
+// }
+//
+// MESSAGE EDITING:
+// model MessageEdit {
+//   id         Int      @id @default(autoincrement())
+//   messageId  Int      @map("message_id")
+//   oldContent String   @map("old_content") @db.Text
+//   editedBy   Int?     @map("edited_by")
+//   editedAt   DateTime @default(now()) @map("edited_at")
+//
+//   message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+//   editor  User?   @relation(fields: [editedBy], references: [id], onDelete: SetNull)
+//
+//   @@index([messageId])
+//   @@map("message_edits")
+// }
+//
+// MESSAGE THREADING:
+// Add to Message model:
+//   parentMessageId Int? @map("parent_message_id")
+//   parent Message? @relation("MessageReplies", fields: [parentMessageId], references: [id])
+//   replies Message[] @relation("MessageReplies")
+//
+// USER BLOCKING:
+// model UserBlock {
+//   blockerId  Int      @map("blocker_id")
+//   blockedId  Int      @map("blocked_id")
+//   blockedAt  DateTime @default(now()) @map("blocked_at")
+//   reason     String?  @db.Text
+//
+//   blocker User @relation("BlockedUsers", fields: [blockerId], references: [id], onDelete: Cascade)
+//   blocked User @relation("BlockedByUsers", fields: [blockedId], references: [id], onDelete: Cascade)
+//
+//   @@id([blockerId, blockedId])
+//   @@index([blockerId])
+//   @@index([blockedId])
+//   @@map("user_blocks")
+// }
+//
+// ============================================
+
+// ============================================
+// PERFORMANCE NOTES
+// ============================================
+//
+// Expected query performance with proper indexes:
+// - Fetch 50 messages: < 5ms
+// - Get conversation list: < 10ms
+// - Send message: < 10ms
+// - Calculate unread count: < 15ms
+// - User search: < 20ms
+//
+// Without indexes, same queries: 500ms - 5000ms (100-1000x slower!)
+//
+// Database size estimates (for 10,000 active users):
+// - users: ~10,000 rows, ~2 MB
+// - conversations: ~50,000 rows, ~5 MB
+// - conversation_members: ~100,000 rows, ~8 MB
+// - messages: ~5,000,000 rows, ~500 MB
+// - indexes: ~180 MB
+// TOTAL: ~695 MB
+//
+// At 100,000 users: ~7 GB
+// At 1,000,000 users: ~70 GB
+//
+// Consider partitioning messages table when > 100M messages
+//
+// ============================================
+
+// ============================================
+// COMMANDS TO GET STARTED
+// ============================================
+//
+// 1. Setup:
+//    npm install @prisma/client
+//    npm install -D prisma
+//    npx prisma init
+//
+// 2. Configure:
+//    - Set DATABASE_URL in .env
+//    - Copy this schema to prisma/schema.prisma
+//
+// 3. Create database and run migration:
+//    createdb chatapp
+//    npx prisma migrate dev --name init
+//
+// 4. Apply additional SQL (constraints, triggers, functions):
+//    psql -d chatapp -f prisma/migrations/.../add_constraints.sql
+//
+// 5. Generate Prisma Client:
+//    npx prisma generate
+//
+// 6. Use in code:
+//    import { PrismaClient } from '@prisma/client'
+//    const prisma = new PrismaClient()
+//
+// 7. Open Prisma Studio (visual database editor):
+//    npx prisma studio
+//
+// ============================================
