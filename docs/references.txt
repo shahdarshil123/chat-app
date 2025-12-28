@@ -10,3 +10,14 @@ https://medium.com/@jholt1055/i-migrated-847-million-records-from-mongodb-to-pos
 
 Documentation:
 
+
+
+
+
+Prisma:
+https://www.prisma.io/docs/getting-started/prisma-postgres/quickstart/prisma-orm
+https://www.prisma.io/docs/orm/prisma-schema/overview
+https://www.prisma.io/docs/orm/prisma-schema/data-model/models
+https://www.prisma.io/docs/orm/reference/prisma-schema-reference#model
+
+React:

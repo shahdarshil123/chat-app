@@ -5,51 +5,96 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output = "./generated/client"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id         String   @id @default(uuid())
-  username   String   @unique
-  createdAt  DateTime @default(now())
+enum UserStatus{
+  online
+  offline
+  away
+}
 
-  messages   Message[]        @relation("UserMessages")
-  participants ConversationParticipant[]
+enum MemberRole{
+  admin
+  member
+}
+
+model User{
+  id Int @id @default(autoincrement())
+  username String @unique @db.VarChar(255)
+  email String @unique @db.VarChar(255)
+  passwordHash String @map("password_hash") @db.VarChar(255)
+  displayName String? @map("display_name") @db.VarChar(255)
+  avatarUrl String? @map("avatar_url") @db.VarChar(500)
+  status UserStatus @default(offline)
+  lastSeen DateTime @default(now()) @map("last_seen")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  sentMessages Message[] @relation("SentMessages")
+  conversationMembers  ConversationMember[]
+  createdConversations Conversation[]         @relation("ConversationCreator")
+
+  @@index([email])
+  @@index([username])
+  @@index([status])
+  @@index([lastSeen])
+  @@map("users")
 }
 
 model Conversation {
-  id          String   @id @default(uuid())
-  isGroup     Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  isGroup   Boolean  @default(false) @map("is_group")
+  name      String?  @db.VarChar(255)
+  createdBy Int?     @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
-  participants ConversationParticipant[]
-  messages     Message[]
+  creator  User?                @relation("ConversationCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  members  ConversationMember[]
+  messages Message[]
+
+  @@index([updatedAt(sort: Desc)])
+  @@index([createdBy])
+  @@index([isGroup])
+  @@map("conversations")
 }
 
-model ConversationParticipant {
-  id              String   @id @default(uuid())
-  user            User      @relation(fields: [userId], references: [id])
-  userId          String
+model ConversationMember {
+  conversationId Int      @map("conversation_id")
+  userId         Int      @map("user_id")
+  role           MemberRole @default(member)
+  joinedAt       DateTime @default(now()) @map("joined_at")
+  lastReadAt     DateTime @default(dbgenerated("'1970-01-01 00:00:00'::timestamp")) @map("last_read_at")
 
-  conversation    Conversation @relation(fields: [conversationId], references: [id])
-  conversationId  String
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  joinedAt        DateTime @default(now())
+  @@id([conversationId, userId])
+  @@index([userId])
+  @@index([conversationId])
+  @@index([lastReadAt])
+  @@map("conversation_members")
 }
 
 model Message {
-  id             String   @id @default(uuid())
-  conversation   Conversation @relation(fields: [conversationId], references: [id])
-  conversationId String
+  id             Int      @id @default(autoincrement())
+  conversationId Int      @map("conversation_id")
+  senderId       Int?     @map("sender_id")
+  content        String   @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
-  sender         User   @relation("UserMessages", fields: [senderId], references: [id])
-  senderId       String
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User?        @relation("SentMessages", fields: [senderId], references: [id], onDelete: SetNull)
 
-  text           String
-  createdAt      DateTime @default(now())
+  @@index([conversationId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([senderId])
+  @@index([createdAt(sort: Desc)])
+  @@map("messages")
 }
-
