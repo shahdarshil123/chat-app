@@ -463,3 +463,60 @@ body,
 .logout-button:hover {
   background: #fee2e2;
 }
+
+
+.message-meta {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.ticks {
+  font-size: 12px;
+  letter-spacing: -2px;
+  margin-left: 4px;
+}
+
+/* Sent (single tick / pending) */
+.ticks.sent {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Delivered (double tick, gray) */
+.ticks.delivered {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* Seen (double tick, high contrast) */
+.ticks.seen {
+  color: #1d4ed8;   /* darker blue */
+  opacity: 1;
+  font-weight: 600;
+}
+.unread-divider {
+  text-align: center;
+  margin: 12px 0;
+  font-size: 12px;
+  color: #6b7280;
+  position: relative;
+}
+
+.unread-divider::before,
+.unread-divider::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 30%;
+  height: 1px;
+  background: #d1d5db;
+}
+
+.unread-divider::before {
+  left: 0;
+}
+
+.unread-divider::after {
+  right: 0;
+}
