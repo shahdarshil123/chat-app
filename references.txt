@@ -1,0 +1,12 @@
+https://www.reddit.com/r/mongodb/comments/18fb6rm/seeking_advice_choosing_between_mongodb_and/
+https://www.reddit.com/r/reactjs/comments/smotdk/which_technologies_can_i_use_to_build_online_chat/
+http://estuary.dev/blog/postgresql-vs-mongodb/?utm_source=chatgpt.com
+https://www.pubnub.com/blog/architectures-for-customer-support-chats/?utm_source=chatgpt.com
+https://stackoverflow.com/questions/66946066/realtime-scalable-chat-app-which-database-should-i-choose?utm_source=chatgpt.com
+https://medium.com/@jholt1055/i-migrated-847-million-records-from-mongodb-to-postgresql-heres-what-i-learned-about-web-scale-84ceeceb87ab
+
+
+
+
+Documentation:
+
