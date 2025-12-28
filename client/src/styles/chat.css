@@ -330,3 +330,130 @@ body,
   background: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
 }
+
+/* ================================
+   Login Panel
+================================ */
+
+.app-root {
+  height: 100vh;
+  width: 100vw;
+}
+
+/* Full-screen container */
+.login-container {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--app-bg);
+}
+
+/* Card */
+.login-card {
+  width: 360px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.login-title {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Inputs */
+.login-input {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #f9fafb;
+  font-size: 14px;
+}
+
+.login-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Button */
+.login-button {
+  margin-top: 6px;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: #052e16;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-button:hover {
+  background: #16a34a;
+}
+
+/* Footer */
+.login-footer {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  margin-left: 4px;
+  font-weight: 600;
+}
+
+.login-container {
+  display: grid;
+  grid-template-columns: 420px 1fr;
+}
+
+.login-card {
+  height: 100%;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+
+/* Push footer to bottom */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Footer container */
+.sidebar-footer {
+  margin-top: auto; /* ⭐ pushes it to the bottom */
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.logout-button {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: #b91c1c;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.logout-button:hover {
+  background: #fee2e2;
+}
