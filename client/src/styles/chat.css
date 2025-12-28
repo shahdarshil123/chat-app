@@ -370,18 +370,24 @@ body,
   text-align: center;
 }
 
-/* Inputs */
 .login-input {
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: #f9fafb;
   font-size: 14px;
+
+  color: #111827; /* ⭐ force black text */
+}
+
+.login-input::placeholder {
+  color: #6b7280; /* muted gray placeholder */
 }
 
 .login-input:focus {
   outline: none;
   border-color: var(--accent);
+  background: #ffffff;
 }
 
 /* Button */
