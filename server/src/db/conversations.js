@@ -1,0 +1,65 @@
+import prisma from "./prisma.js";
+
+
+export async function getUserConversations(userId) {
+    const memberships = await prisma.conversationMember.findMany({
+        where: { userId },
+        include: {
+            conversation: {
+                include: {
+                    members: {
+                        where: {
+                            userId: { not: userId },
+                        },
+                    },
+                },
+            },
+        },
+        orderBy: {
+            conversation: {
+                updatedAt: 'desc',
+            },
+        },
+    });
+
+    return memberships;
+}
+
+
+
+export async function getOrCreateDirectConversation(userId1, userId2) {
+    const existing = await prisma.conversationMember.findFirst({
+        where: {
+            userId: userId1,
+            conversation: {
+                isGroup: false,
+                members: {
+                    some: {
+                        userId: userId2
+                    }
+                },
+            },
+        },
+        include: {
+            conversation: true
+        }
+    });
+
+    if (existing) {
+        return existing.conversation;
+    }
+
+    return await prisma.conversation.create({
+        data: {
+            isGroup: false,
+            createdBy: userId1,
+            members: {
+                create: [
+                    { userId: userId1, role: 'member' },
+                    { userId: userId2, role: 'member' },
+                ],
+            },
+        },
+    });
+}
+

@@ -6,6 +6,8 @@ import {registerSockets} from "./sockets.js";
 
 //Import Routes
 import userRoutes from "./routes/users.js";
+import messageRoutes from "./routes/messages.js";
+import conversationRoutes from "./routes/conversations.js";
 
 dotenv.config();
 
@@ -16,6 +18,8 @@ app.use(express.json());
 
 // API routes
 app.use('/api/user', userRoutes);
+app.use('/api/message', messageRoutes);
+app.use('/api/conversation', conversationRoutes);
 
 const server = http.createServer(app);
 
