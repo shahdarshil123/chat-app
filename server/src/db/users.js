@@ -2,14 +2,15 @@ import prisma from "./prisma.js";
 import bcrypt from 'bcrypt';
 
 export async function createUser(data){
-    const passwordHash = await bcrypt.hash(data.password, 10);
+    const {username, email, password, displayName} = data;
+    const passwordHash = await bcrypt.hash(password, 10);
 
     return await prisma.user.create({
         data:{
-            username: data.username,
-            email: data.email,
+            username: username,
+            email: email,
             passwordHash,
-            displayName: data.displayName || data.username
+            displayName: displayName || username
         },
         select: {
             id: true,
@@ -28,6 +29,26 @@ export async function getUserByEmail(email){
     return await prisma.user.findUnique({
         where: {email},
     });
+}
+
+export async function checkUserExistsByEmail(email){
+    const user = await prisma.user.findUnique({
+        where: {email: email},
+        select: {id: true}
+    });
+    console.log(user);
+    const check = (user === undefined || user === null)? false:  true;
+    return check;
+}
+
+export async function checkUserExistsByUsername(username){
+    const user = await prisma.user.findUnique({
+        where: {username: username},
+        select: {id: true}
+    });
+    console.log(user);
+    const check = (user === undefined || user === null)? false:  true;
+    return check;
 }
 
 export async function getUserById(id) {
