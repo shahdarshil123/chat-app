@@ -93,3 +93,7 @@ export async function getLastSeen(userId) {
         },
     });
 }
+
+export async function verifyPassword(user, password){
+    return await bcrypt.compare(password, user.passwordHash);
+}
