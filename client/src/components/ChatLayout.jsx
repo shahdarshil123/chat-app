@@ -4,6 +4,9 @@ import ConversationHeader from "./ConversationHeader";
 import MessageFeed from "./MessageFeed";
 import MessageInput from "./MessageInput";
 
+import { connectSocket, disconnectSocket } from "../socket";
+
+
 /* ================================
    Temporary Logged-in User
 ================================ */
@@ -18,6 +21,27 @@ export default function ChatLayout({ onLogout }) {
   const [activeId, setActiveId] = useState(null);
   const [search, setSearch] = useState("");
 
+  const [onlineUsers, setOnlineUsers] = useState(new Set());
+
+  useEffect(() => {
+    const socket = connectSocket(CURRENT_USER_ID);
+
+    socket.on("user:online", ({ userId }) => {
+      setOnlineUsers(prev => new Set(prev).add(userId));
+    });
+
+    socket.on("user:offline", ({ userId }) => {
+      setOnlineUsers(prev => {
+        const copy = new Set(prev);
+        copy.delete(userId);
+        return copy;
+      });
+    });
+
+    return () => {
+      disconnectSocket();
+    };
+  }, []);
   /* ================================
      Load Conversations
   ================================ */
@@ -164,10 +188,10 @@ export default function ChatLayout({ onLogout }) {
       prev.map(c =>
         c.id === id
           ? {
-              ...c,
-              unread: 0,
-              lastReadAt: now,
-            }
+            ...c,
+            unread: 0,
+            lastReadAt: now,
+          }
           : c
       )
     );
@@ -180,70 +204,70 @@ export default function ChatLayout({ onLogout }) {
     }).catch(err => console.error("mark read failed", err));
   }
 
-async function sendMessage(text) {
-  if (!text.trim() || !activeId) return;
+  async function sendMessage(text) {
+    if (!text.trim() || !activeId) return;
 
-  const res = await fetch(`http://localhost:4000/api/message/${activeId}/messages`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      conversationId: activeId,
-      senderId: CURRENT_USER_ID,
-      content: text,
-    }),
-  });
+    const res = await fetch(`http://localhost:4000/api/message/${activeId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        conversationId: activeId,
+        senderId: CURRENT_USER_ID,
+        content: text,
+      }),
+    });
 
-  const saved = await res.json();
+    const saved = await res.json();
 
-  // ✅ Fallback if backend doesn't return createdAt
-  const createdAt =
-    saved.createdAt ?? new Date().toISOString();
+    // ✅ Fallback if backend doesn't return createdAt
+    const createdAt =
+      saved.createdAt ?? new Date().toISOString();
 
-  const mapped = {
-    id: saved.id ?? `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    fromSelf: true,
-    text: saved.content ?? text, // ✅ fallback
-    time: new Date(createdAt).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-    status: "sent",
-    createdAt,
-  };
-
-  setMessages(prev => {
-    const existing = prev[activeId] || [];
-    return {
-      ...prev,
-      [activeId]: dedupeMessages([...existing, mapped]),
+    const mapped = {
+      id: saved.id ?? `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      fromSelf: true,
+      text: saved.content ?? text, // ✅ fallback
+      time: new Date(createdAt).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      status: "sent",
+      createdAt,
     };
-  });
 
-  setConversations(prev =>
-    prev.map(c =>
-      c.id === activeId
-        ? {
+    setMessages(prev => {
+      const existing = prev[activeId] || [];
+      return {
+        ...prev,
+        [activeId]: dedupeMessages([...existing, mapped]),
+      };
+    });
+
+    setConversations(prev =>
+      prev.map(c =>
+        c.id === activeId
+          ? {
             ...c,
             lastMessage: mapped.text,
             lastTime: mapped.time,
           }
-        : c
-    )
-  );
-}
+          : c
+      )
+    );
+  }
 
-function dedupeMessages(list) {
-  const unique = Array.from(new Map(list.map(m => [m.id, m])).values());
+  function dedupeMessages(list) {
+    const unique = Array.from(new Map(list.map(m => [m.id, m])).values());
 
-  // Sort by creation time so temporary ids don't break ordering
-  unique.sort((a, b) => {
-    const ta = new Date(a.createdAt).getTime();
-    const tb = new Date(b.createdAt).getTime();
-    return ta - tb;
-  });
+    // Sort by creation time so temporary ids don't break ordering
+    unique.sort((a, b) => {
+      const ta = new Date(a.createdAt).getTime();
+      const tb = new Date(b.createdAt).getTime();
+      return ta - tb;
+    });
 
-  return unique;
-}
+    return unique;
+  }
 
   /* ================================
      Render
@@ -274,7 +298,8 @@ function dedupeMessages(list) {
 
       {/* ===== Main Chat ===== */}
       <section className="main">
-        <ConversationHeader conversation={activeConversation} />
+        <ConversationHeader conversation={activeConversation}
+        onlineUsers = {onlineUsers} />
 
         <MessageFeed
           messages={activeMessages}

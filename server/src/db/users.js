@@ -36,7 +36,7 @@ export async function checkUserExistsByEmail(email) {
         where: { email: email },
         select: { id: true }
     });
-    console.log(user);
+    // console.log(user);
     const check = (user === undefined || user === null) ? false : true;
     return check;
 }
