@@ -1,71 +1,53 @@
-import { Fragment, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
-/**
- * Props:
- * - messages: Array of message objects
- *   {
- *     id,
- *     fromSelf: boolean,
- *     text,
- *     time,
- *     status?: "sent" | "delivered" | "seen"
- *   }
- *
- * - unreadStartId: message id where unread messages start (optional)
- */
-export default function MessageFeed({ messages = [], unreadStartId = null }) {
+export default function MessageFeed({ messages = [], unreadStartId }) {
+  const containerRef = useRef(null);
   const bottomRef = useRef(null);
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll ONLY when new messages arrive at the bottom
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
+    const container = containerRef.current;
+    if (!container) return;
 
-  if (!messages.length) {
-    return (
-      <div className="messages">
-        <div style={{ color: "#6b7280" }}>No messages yet</div>
-      </div>
-    );
-  }
+    const isNearBottom =
+      container.scrollHeight -
+        container.scrollTop -
+        container.clientHeight <
+      80; // px threshold
+
+    if (isNearBottom) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]); // 🔑 depend on entire array, not length
 
   return (
-    <div className="messages">
-      {messages.map((m) => (
-        <Fragment key={m.id}>
-          {/* Unread divider */}
+    <div className="messages" ref={containerRef}>
+      {messages.map(m => (
+        <div key={m.id}>
           {unreadStartId === m.id && (
             <div className="unread-divider">Unread messages</div>
           )}
 
-          {/* Message row */}
           <div
-            className={`message-row ${
-              m.fromSelf ? "self" : "other"
-            }`}
+            className={`message-row ${m.fromSelf ? "self" : "other"}`}
           >
             <div className="message">
               <span>{m.text}</span>
 
               <div className="message-meta">
                 <span className="time">{m.time}</span>
-
-                {/* Two-tick indicator for self messages */}
                 {m.fromSelf && (
-                  <span
-                    className={`ticks ${
-                      m.status ? m.status : "sent"
-                    }`}
-                  >
+                  <span className={`ticks ${m.status ?? "sent"}`}>
                     ✓✓
                   </span>
                 )}
               </div>
             </div>
           </div>
-        </Fragment>
+        </div>
       ))}
 
+      {/* Scroll anchor */}
       <div ref={bottomRef} />
     </div>
   );

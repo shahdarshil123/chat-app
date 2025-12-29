@@ -180,6 +180,8 @@ body,
   flex-direction: column;
   background: var(--panel-bg);
   min-width: 0;
+  /* allow flex children to shrink so scrollable area can work */
+  min-height: 0;
 }
 
 /* Header */
@@ -209,6 +211,8 @@ body,
   padding: 20px;
   background: var(--panel-muted);
   overflow-y: auto;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Day Separator */

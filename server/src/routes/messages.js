@@ -6,7 +6,10 @@ const router = express.Router();
 router.post("/:conversationId/messages", async (req, res)=>{
     try{
         // const conversationId = parseInt(req.params.conversationId);
-        const {conversationId, senderId, content} = req.body;
+        // const {conversationId, senderId, content} = req.body;
+        const conversationId = parseInt(req.body.conversationId);
+        const senderId = parseInt(req.body.senderId);
+        const content = req.body.content;
 
         if (!content || content.trim().length === 0) {
             return res.status(400).json({ error: 'Message content is required' });

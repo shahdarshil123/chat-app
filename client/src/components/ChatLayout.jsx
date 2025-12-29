@@ -1,98 +1,129 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ConversationList from "./ConversationList";
 import ConversationHeader from "./ConversationHeader";
 import MessageFeed from "./MessageFeed";
 import MessageInput from "./MessageInput";
 
-/* -------------------------------
-   Seed Data
--------------------------------- */
-const conversationsSeed = [
-  {
-    id: "1",
-    title: "Project Channel",
-    lastMessage: "Deployment completed",
-    lastTime: "22:10",
-    unread: 2,
-    avatar: "PC",
-  },
-  {
-    id: "2",
-    title: "Team Discussion",
-    lastMessage: "Please review the changes",
-    lastTime: "18:45",
-    unread: 0,
-    avatar: "TD",
-  },
-  {
-    id: "3",
-    title: "General Chat",
-    lastMessage: "Looks good to me",
-    lastTime: "Yesterday",
-    unread: 0,
-    avatar: "GC",
-  }
-];
+/* ================================
+   Temporary Logged-in User
+================================ */
+const CURRENT_USER_ID = 2;
 
-const messagesSeed = {
-  "1": [
-    { id: 1, fromSelf: false, text: "Deployment is done", time: "22:07" },
-    {
-      id: 2,
-      fromSelf: true,
-      text: "Great, I’ll verify logs",
-      time: "22:08",
-      status: "seen",
-    },
-    {
-      id: 3,                    // 👈 NEW incoming
-      fromSelf: false,
-      text: "New update from server",
-      time: "22:15",
-    },
-  ],
-  "2": [
-    {
-      id: 1,
-      fromSelf: false,
-      text: "Please review the changes",
-      time: "18:45",
-    },
-  ],
-  "3": [
-    {
-      id: 1,
-      fromSelf: true,
-      text: "Looks good to me",
-      time: "Yesterday",
-      status: "delivered",
-    },
-  ],
-};
-
-/* 👇 Track last SEEN INCOMING message */
-const lastSeenIncomingSeed = {
-  "1": 1,
-  "2": null,
-  "3": null,
-  "4":null
-};
-
+/* ================================
+   Chat Layout
+================================ */
 export default function ChatLayout({ onLogout }) {
-  const [conversations, setConversations] = useState(conversationsSeed);
-  const [messages, setMessages] = useState(messagesSeed);
-  const [activeId, setActiveId] = useState(conversationsSeed[0].id);
+  const [conversations, setConversations] = useState([]);
+  const [messages, setMessages] = useState({});
+  const [activeId, setActiveId] = useState(null);
   const [search, setSearch] = useState("");
-  const [lastSeenIncoming, setLastSeenIncoming] = useState(
-    lastSeenIncomingSeed
-  );
 
-  /* -------------------------------
+  /* ================================
+     Load Conversations
+  ================================ */
+  useEffect(() => {
+    async function loadConversations() {
+      const res = await fetch(
+        `http://localhost:4000/api/conversation/${CURRENT_USER_ID}`
+      );
+      const json = await res.json();
+      console.log(json);
+
+      const mapped = json.conversations.map(item => {
+        const conv = item.conversation;
+
+        // Determine title
+        let title = conv.name;
+        if (!conv.isGroup) {
+          const other = conv.members.find(
+            m => m.userId !== CURRENT_USER_ID
+          );
+          //title = `User ${other?.userId ?? "Unknown"}`;
+        }
+
+        return {
+          id: String(conv.id),
+          title,
+          avatar: title
+            .split(" ")
+            .slice(0, 2)
+            .map(w => w[0])
+            .join("")
+            .toUpperCase(),
+          lastMessage: "",
+          lastTime: "",
+          unread: 0,
+          lastReadAt: item.lastReadAt, // backend read timestamp
+        };
+      });
+
+      setConversations(mapped);
+
+      if (mapped.length) {
+        setActiveId(mapped[0].id);
+      }
+    }
+
+    loadConversations();
+  }, []);
+
+  /* ================================
+     Load Messages (per conversation)
+  ================================ */
+  useEffect(() => {
+    if (!activeId) return;
+
+    async function loadMessages() {
+      const res = await fetch(
+        `http://localhost:4000/api/message/${activeId}/messages`
+      );
+      const json = await res.json();
+      console.log(json);
+
+      const mapped = json.messages.map(m => ({
+        id: m.id,
+        fromSelf: m.senderId === CURRENT_USER_ID,
+        text: m.content,
+        time: new Date(m.createdAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        status: m.senderId === CURRENT_USER_ID ? "delivered" : undefined,
+        createdAt: m.createdAt,
+        sender: {
+          id: m.sender.id,
+          name: m.sender.displayName,
+          avatar: m.sender.avatarUrl,
+        },
+      }));
+
+      setMessages(prev => {
+        const existing = prev[activeId] || [];
+
+        const merged = [...existing, ...mapped];
+
+        // Deduplicate by message id
+        const unique = Array.from(
+          new Map(merged.map(m => [m.id, m])).values()
+        );
+
+        return {
+          ...prev,
+          [activeId]: unique,
+        };
+      });
+    }
+
+    loadMessages();
+  }, [activeId]);
+
+  /* ================================
      Derived State
-  -------------------------------- */
-  const activeConversation = useMemo(() => {
-    return conversations.find(c => c.id === activeId);
-  }, [conversations, activeId]);
+  ================================ */
+  const activeConversation = useMemo(
+    () => conversations.find(c => c.id === activeId),
+    [conversations, activeId]
+  );
 
   const filteredConversations = useMemo(() => {
     if (!search.trim()) return conversations;
@@ -103,90 +134,109 @@ export default function ChatLayout({ onLogout }) {
 
   const activeMessages = messages[activeId] || [];
 
-  /* ✅ UNREAD divider logic (incoming only) */
+  /* ================================
+     Unread Divider Logic
+     (incoming only, backend-driven)
+  ================================ */
   const unreadStartId = useMemo(() => {
-    const lastSeen = lastSeenIncoming[activeId];
-    const firstUnreadIncoming = activeMessages.find(
-      m => !m.fromSelf && (lastSeen == null || m.id > lastSeen)
-    );
-    return firstUnreadIncoming?.id ?? null;
-  }, [activeMessages, activeId, lastSeenIncoming]);
+    if (!activeConversation?.lastReadAt) return null;
 
-  /* -------------------------------
+    const lastReadTime = new Date(
+      activeConversation.lastReadAt
+    ).getTime();
+
+    return activeMessages.find(
+      m =>
+        !m.fromSelf &&
+        new Date(m.createdAt).getTime() > lastReadTime
+    )?.id ?? null;
+  }, [activeConversation, activeMessages]);
+
+  /* ================================
      Actions
-  -------------------------------- */
+  ================================ */
   function selectConversation(id) {
     setActiveId(id);
 
-    const list = messages[id] || [];
-
-    // mark latest incoming as seen
-    const latestIncomingId =
-      [...list].reverse().find(m => !m.fromSelf)?.id ?? null;
-
-    setLastSeenIncoming(prev => ({
-      ...prev,
-      [id]: latestIncomingId,
-    }));
-
-    // Delivered → Seen (sent messages)
-    setMessages(prev => ({
-      ...prev,
-      [id]: prev[id]?.map(m =>
-        m.fromSelf && m.status === "delivered"
-          ? { ...m, status: "seen" }
-          : m
-      ),
-    }));
+    // Notify backend that conversation is read
+    fetch(`/api/conversations/${id}/read`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: CURRENT_USER_ID }),
+    });
   }
 
-  function sendMessage(text) {
-    if (!text.trim()) return;
+async function sendMessage(text) {
+  if (!text.trim() || !activeId) return;
 
-    const time = new Date().toLocaleTimeString([], {
+  const res = await fetch(`http://localhost:4000/api/message/${activeId}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      conversationId: activeId,
+      senderId: CURRENT_USER_ID,
+      content: text,
+    }),
+  });
+
+  const saved = await res.json();
+
+  // ✅ Fallback if backend doesn't return createdAt
+  const createdAt =
+    saved.createdAt ?? new Date().toISOString();
+
+  const mapped = {
+    id: saved.id ?? `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    fromSelf: true,
+    text: saved.content ?? text, // ✅ fallback
+    time: new Date(createdAt).toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
-    });
+    }),
+    status: "sent",
+    createdAt,
+  };
 
-    const newMessage = {
-      id: Date.now(),
-      fromSelf: true,
-      text,
-      time,
-      status: "sent",
-    };
-
-    setMessages(prev => ({
+  setMessages(prev => {
+    const existing = prev[activeId] || [];
+    return {
       ...prev,
-      [activeId]: [...(prev[activeId] || []), newMessage],
-    }));
+      [activeId]: dedupeMessages([...existing, mapped]),
+    };
+  });
 
-    setConversations(prev =>
-      prev.map(c =>
-        c.id === activeId
-          ? { ...c, lastMessage: text, lastTime: time, unread: 0 }
-          : c
-      )
-    );
+  setConversations(prev =>
+    prev.map(c =>
+      c.id === activeId
+        ? {
+            ...c,
+            lastMessage: mapped.text,
+            lastTime: mapped.time,
+          }
+        : c
+    )
+  );
+}
 
-    // Simulate delivery
-    setTimeout(() => {
-      setMessages(prev => ({
-        ...prev,
-        [activeId]: prev[activeId].map(m =>
-          m.id === newMessage.id
-            ? { ...m, status: "delivered" }
-            : m
-        ),
-      }));
-    }, 600);
-  }
+function dedupeMessages(list) {
+  const unique = Array.from(new Map(list.map(m => [m.id, m])).values());
 
-  /* -------------------------------
+  // Sort by creation time so temporary ids don't break ordering
+  unique.sort((a, b) => {
+    const ta = new Date(a.createdAt).getTime();
+    const tb = new Date(b.createdAt).getTime();
+    return ta - tb;
+  });
+
+  return unique;
+}
+
+  /* ================================
      Render
-  -------------------------------- */
+  ================================ */
   return (
     <div className="chat-app">
+      {/* ===== Sidebar ===== */}
       <aside className="sidebar">
         <input
           className="search"
@@ -208,6 +258,7 @@ export default function ChatLayout({ onLogout }) {
         </div>
       </aside>
 
+      {/* ===== Main Chat ===== */}
       <section className="main">
         <ConversationHeader conversation={activeConversation} />
 
