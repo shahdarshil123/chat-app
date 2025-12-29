@@ -158,12 +158,26 @@ export default function ChatLayout({ onLogout }) {
   function selectConversation(id) {
     setActiveId(id);
 
+    // Optimistically mark conversation as read in UI
+    const now = new Date().toISOString();
+    setConversations(prev =>
+      prev.map(c =>
+        c.id === id
+          ? {
+              ...c,
+              unread: 0,
+              lastReadAt: now,
+            }
+          : c
+      )
+    );
+
     // Notify backend that conversation is read
     fetch(`/api/conversations/${id}/read`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId: CURRENT_USER_ID }),
-    });
+    }).catch(err => console.error("mark read failed", err));
   }
 
 async function sendMessage(text) {
