@@ -45,21 +45,25 @@ export default function ChatLayout({ currentUser, onLogout }) {
       setMessages(prev => {
         const existing = prev[msg.conversationId] || [];
 
+        // 🔑 Lightweight guard (O(n), or O(1) later with Set)
+        if (existing.some(m => m.id === msg.id)) {
+          return prev;
+        }
+
+        const mapped = {
+          id: msg.id,
+          fromSelf: msg.senderId === CURRENT_USER_ID,
+          text: msg.content,
+          createdAt: msg.createdAt,
+          time: new Date(msg.createdAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        };
+
         return {
           ...prev,
-          [msg.conversationId]: dedupeMessages([
-            ...existing,
-            {
-              id: msg.id,
-              fromSelf: msg.senderId === CURRENT_USER_ID,
-              text: msg.content,
-              createdAt: msg.createdAt,
-              time: new Date(msg.createdAt).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              }),
-            },
-          ]),
+          [msg.conversationId]: [...existing, mapped],
         };
       });
     });
@@ -128,7 +132,6 @@ export default function ChatLayout({ currentUser, onLogout }) {
         `http://localhost:4000/api/message/${activeId}/messages`
       );
       const json = await res.json();
-      console.log(json);
 
       const mapped = json.messages.map(m => ({
         id: m.id,
@@ -147,21 +150,11 @@ export default function ChatLayout({ currentUser, onLogout }) {
         },
       }));
 
-      setMessages(prev => {
-        const existing = prev[activeId] || [];
-
-        const merged = [...existing, ...mapped];
-
-        // Deduplicate by message id
-        const unique = Array.from(
-          new Map(merged.map(m => [m.id, m])).values()
-        );
-
-        return {
-          ...prev,
-          [activeId]: unique,
-        };
-      });
+      // 🔑 REPLACE messages for this conversation
+      setMessages(prev => ({
+        ...prev,
+        [activeId]: mapped,
+      }));
     }
 
     loadMessages();
@@ -223,52 +216,49 @@ export default function ChatLayout({ currentUser, onLogout }) {
     );
 
     // Notify backend that conversation is read
-    fetch(`/api/conversations/${id}/read`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: CURRENT_USER_ID }),
-    }).catch(err => console.error("mark read failed", err));
+    // fetch(`/api/conversations/${id}/read`, {
+    //   method: "POST",
+    //   headers: { "Content-Type": "application/json" },
+    //   body: JSON.stringify({ userId: CURRENT_USER_ID }),
+    // }).catch(err => console.error("mark read failed", err));
   }
 
   async function sendMessage(text) {
     if (!text.trim() || !activeId) return;
 
-    const res = await fetch(`http://localhost:4000/api/message/${activeId}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        conversationId: activeId,
-        senderId: CURRENT_USER_ID,
-        content: text,
-      }),
-    });
-
+    const res = await fetch(
+      `http://localhost:4000/api/message/${activeId}/messages`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationId: activeId,
+          senderId: CURRENT_USER_ID,
+          content: text,
+        }),
+      }
+    );
     const saved = await res.json();
-
-    // ✅ Fallback if backend doesn't return createdAt
-    const createdAt =
-      saved.createdAt ?? new Date().toISOString();
+    const createdAt = saved.createdAt ?? new Date().toISOString();
 
     const mapped = {
-      id: saved.id ?? `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      id: saved.id,
       fromSelf: true,
-      text: saved.content ?? text, // ✅ fallback
+      text,
+      createdAt,
       time: new Date(createdAt).toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
       }),
-      status: "sent",
-      createdAt,
     };
 
-    setMessages(prev => {
-      const existing = prev[activeId] || [];
-      return {
-        ...prev,
-        [activeId]: dedupeMessages([...existing, mapped]),
-      };
-    });
+    // ✅ Append message (DO NOT replace, DO NOT dedupe)
+    setMessages(prev => ({
+      ...prev,
+      [activeId]: [...(prev[activeId] || []), mapped],
+    }));
 
+    // ✅ Update sidebar preview for this conversation
     setConversations(prev =>
       prev.map(c =>
         c.id === activeId
