@@ -3,7 +3,6 @@ import { io } from "socket.io-client";
 let socket = null;
 
 export function connectSocket(userId) {
-    // ✅ prevent duplicate connections
     if (socket) return socket;
 
     socket = io("http://localhost:4000", {
@@ -14,12 +13,13 @@ export function connectSocket(userId) {
     socket.on("connect", () => {
         console.log("Socket connected:", socket.id);
 
-        // ✅ always re-emit on connect (including reconnect)
+        // ✅ announce identity (only online is client-driven)
         socket.emit("user:online", { userId });
     });
 
     socket.on("disconnect", (reason) => {
         console.log("Socket disconnected:", reason);
+        // ❌ NO emits here
     });
 
     return socket;
@@ -27,7 +27,7 @@ export function connectSocket(userId) {
 
 export function disconnectSocket() {
     if (socket) {
-        socket.disconnect();
+        socket.disconnect(); // triggers server-side disconnect
         socket = null;
     }
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import LoginPanel from "./components/LoginPanel";
 import ChatLayout from "./components/ChatLayout";
+import { disconnectSocket } from "./socket";
 import "./styles/chat.css";
 
 export default function App() {
@@ -21,6 +22,7 @@ export default function App() {
 
   function handleLogout() {
     localStorage.removeItem("currentUser");
+    disconnectSocket()
     setCurrentUser(null);
   }
 

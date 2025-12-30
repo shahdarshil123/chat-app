@@ -23,6 +23,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
   const [messages, setMessages] = useState({});
   const [activeId, setActiveId] = useState(null);
   const [search, setSearch] = useState("");
+  // const [activeConversation, setActiveConversation]= useState("");
 
   const [onlineUsers, setOnlineUsers] = useState(new Set());
 
@@ -94,6 +95,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
         return {
           id: String(conv.id),
           title,
+          members: conv.members,
           avatar: title
             .split(" ")
             .slice(0, 2)
@@ -159,7 +161,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
   /* ================================
      Derived State
   ================================ */
-  const activeConversation = useMemo(
+  let activeConversation = useMemo(
     () => conversations.find(c => c.id === activeId),
     [conversations, activeId]
   );
@@ -210,16 +212,6 @@ export default function ChatLayout({ currentUser, onLogout }) {
           : c
       )
     );
-
-    const activeConversation = conversations.find(
-      c => c.id === activeId
-    );
-    // Notify backend that conversation is read
-    // fetch(`/api/conversations/${id}/read`, {
-    //   method: "POST",
-    //   headers: { "Content-Type": "application/json" },
-    //   body: JSON.stringify({ userId: CURRENT_USER_ID }),
-    // }).catch(err => console.error("mark read failed", err));
   }
 
   async function sendMessage(text) {
