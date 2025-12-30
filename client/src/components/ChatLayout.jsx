@@ -21,7 +21,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
 
   const [conversations, setConversations] = useState([]);
   const [messages, setMessages] = useState({});
-  const [activeId, setActiveId] = useState(null);
+  const [activeId, setActiveId] = useState(null); // Active conversation id
   const [search, setSearch] = useState("");
   // const [activeConversation, setActiveConversation]= useState("");
 
@@ -90,6 +90,8 @@ export default function ChatLayout({ currentUser, onLogout }) {
             m => m.userId !== CURRENT_USER_ID
           );
           //title = `User ${other?.userId ?? "Unknown"}`;
+          const displayName = other.user.displayName;
+          title = !( displayName === null || displayName === undefined)? displayName: "Unknown" ;
         }
 
         return {

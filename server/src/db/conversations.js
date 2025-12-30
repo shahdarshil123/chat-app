@@ -11,6 +11,17 @@ export async function getUserConversations(userId) {
                         where: {
                             userId: { not: userId },
                         },
+                        include: {
+                            user: {
+                                select: {
+                                    id: true,
+                                    username: true,
+                                    displayName: true,
+                                    avatarUrl: true,
+                                    status: true,
+                                },
+                            },
+                        },
                     },
                 },
             },
