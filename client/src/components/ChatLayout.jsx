@@ -113,9 +113,9 @@ export default function ChatLayout({ currentUser, onLogout }) {
 
       setConversations(mapped);
 
-      if (mapped.length) {
-        setActiveId(mapped[0].id);
-      }
+      // if (mapped.length) {
+      //   setActiveId(mapped[0].id);
+      // }
     }
 
     loadConversations();
