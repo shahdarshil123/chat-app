@@ -1,14 +1,13 @@
 import { Server } from "socket.io";
 import { updateUserLastSeen } from "./db/users.js";
 
-export const onlineUsers = new Map();
-
-// 🔑 export io (initialized later)
+export const onlineUsers = new Map(); // userId -> socketId
 export let io = null;
 
+/**
+ * Initialize socket.io and register all handlers
+ */
 export function registerSockets(server) {
-    console.log("Socket server initialized");
-
     io = new Server(server, {
         cors: {
             origin: "http://localhost:5173",
@@ -16,32 +15,64 @@ export function registerSockets(server) {
         },
     });
 
-    io.on("connection", (socket) => {
-        console.log("connected:", socket.id);
+    console.log("Socket server initialized");
 
+    /**
+     * Helper: broadcast online user IDs to all clients
+     */
+    function broadcastOnlineUsers() {
+        if (!io) return;
+        io.emit("users:online", Array.from(onlineUsers.keys()));
+        console.log("Broadcasting online users:", [...onlineUsers.keys()]);
+    }
+
+    io.on("connection", (socket) => {
+        console.log("Socket connected:", socket.id);
+
+        /**
+         * User comes online
+         */
         socket.on("user:online", async ({ userId }) => {
+            console.log("user:online received:", userId);
             if (!userId) return;
 
-            onlineUsers.set(userId, socket.id);
+            onlineUsers.set(Number(userId), socket.id);
+            console.log("onlineUsers map:", [...onlineUsers.keys()]);
             console.log(`User ${userId} is online`);
+
+            broadcastOnlineUsers();
         });
 
+        /**
+         * Join a conversation room (optional, future use)
+         */
         socket.on("conversation:join", (conversationId) => {
-            socket.join(conversationId);
-            console.log(`Joined conversation ${conversationId}`);
+            if (!conversationId) return;
+            socket.join(String(conversationId));
+            console.log(`Socket ${socket.id} joined conversation ${conversationId}`);
         });
 
+        /**
+         * Handle disconnect
+         */
         socket.on("disconnect", async () => {
-            const userId = [...onlineUsers.entries()]
-                .find(([, sId]) => sId === socket.id)?.[0];
+            let disconnectedUserId = null;
 
-            if (userId) {
-                onlineUsers.delete(userId);
-                await updateUserLastSeen(userId);
-                console.log(`User ${userId} went offline`);
+            for (const [userId, socketId] of onlineUsers.entries()) {
+                if (socketId === socket.id) {
+                    disconnectedUserId = userId;
+                    onlineUsers.delete(userId);
+                    break;
+                }
             }
 
-            console.log("Disconnected:", socket.id);
+            if (disconnectedUserId) {
+                console.log(`User ${disconnectedUserId} went offline`);
+                await updateUserLastSeen(disconnectedUserId);
+                broadcastOnlineUsers();
+            }
+
+            console.log("Socket disconnected:", socket.id);
         });
     });
 

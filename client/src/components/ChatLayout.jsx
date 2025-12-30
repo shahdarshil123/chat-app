@@ -27,51 +27,47 @@ export default function ChatLayout({ currentUser, onLogout }) {
   const [onlineUsers, setOnlineUsers] = useState(new Set());
 
   useEffect(() => {
-    const socket = connectSocket(CURRENT_USER_ID);
+  if (!CURRENT_USER_ID) return;
 
-    socket.on("user:online", ({ userId }) => {
-      setOnlineUsers(prev => new Set(prev).add(userId));
+  const socket = connectSocket(CURRENT_USER_ID);
+
+  socket.on("users:online", (users) => {
+    console.log("users:online received:", users);
+    setOnlineUsers(new Set(users));
+  });
+
+  socket.on("message:new", (msg) => {
+    setMessages(prev => {
+      const existing = prev[msg.conversationId] || [];
+
+      if (existing.some(m => m.id === msg.id)) {
+        return prev;
+      }
+
+      const mapped = {
+        id: msg.id,
+        fromSelf: msg.senderId === CURRENT_USER_ID,
+        text: msg.content,
+        createdAt: msg.createdAt,
+        time: new Date(msg.createdAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+
+      return {
+        ...prev,
+        [msg.conversationId]: [...existing, mapped],
+      };
     });
+  });
 
-    socket.on("user:offline", ({ userId }) => {
-      setOnlineUsers(prev => {
-        const copy = new Set(prev);
-        copy.delete(userId);
-        return copy;
-      });
-    });
+  return () => {
+    socket.off("users:online");
+    socket.off("message:new");
+  };
+}, [CURRENT_USER_ID]);
 
-    socket.on("message:new", (msg) => {
-      setMessages(prev => {
-        const existing = prev[msg.conversationId] || [];
-
-        // 🔑 Lightweight guard (O(n), or O(1) later with Set)
-        if (existing.some(m => m.id === msg.id)) {
-          return prev;
-        }
-
-        const mapped = {
-          id: msg.id,
-          fromSelf: msg.senderId === CURRENT_USER_ID,
-          text: msg.content,
-          createdAt: msg.createdAt,
-          time: new Date(msg.createdAt).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        };
-
-        return {
-          ...prev,
-          [msg.conversationId]: [...existing, mapped],
-        };
-      });
-    });
-
-    return () => {
-      disconnectSocket();
-    };
-  }, []);
   /* ================================
      Load Conversations
   ================================ */
@@ -215,6 +211,9 @@ export default function ChatLayout({ currentUser, onLogout }) {
       )
     );
 
+    const activeConversation = conversations.find(
+      c => c.id === activeId
+    );
     // Notify backend that conversation is read
     // fetch(`/api/conversations/${id}/read`, {
     //   method: "POST",
@@ -312,10 +311,12 @@ export default function ChatLayout({ currentUser, onLogout }) {
         </div>
       </aside>
 
+    
       {/* ===== Main Chat ===== */}
       <section className="main">
         <ConversationHeader conversation={activeConversation}
-          onlineUsers={onlineUsers} />
+          onlineUsers={onlineUsers}
+          currentUserId = {CURRENT_USER_ID} />
 
         <MessageFeed
           messages={activeMessages}
