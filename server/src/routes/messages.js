@@ -1,9 +1,10 @@
 import express from 'express';
 import { saveMessage, getMessages } from '../db/messages.js';
+import { requireAuth } from '../middleware/requireAuth.js';
 
 const router = express.Router();
 
-router.post("/:conversationId/messages", async (req, res)=>{
+router.post("/:conversationId/messages", requireAuth, async (req, res)=>{
     try{
         // const conversationId = parseInt(req.params.conversationId);
         // const {conversationId, senderId, content} = req.body;
@@ -30,7 +31,7 @@ router.post("/:conversationId/messages", async (req, res)=>{
     }
 });
 
-router.get("/:conversationId/messages", async (req, res)=>{
+router.get("/:conversationId/messages", requireAuth, async (req, res)=>{
     try{
         if(!req.params.conversationId || req.params.conversationId === undefined){
             res.status(400).json({error: "conversationId not provided"});

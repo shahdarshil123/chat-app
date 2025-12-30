@@ -1,9 +1,10 @@
 import express from 'express';
 import { checkUserExistsByEmail, checkUserExistsByUsername, createUser, getUserById, updateUserLastSeen, getLastSeen} from '../db/users.js';
+import { requireAuth } from '../middleware/requireAuth.js';
 
 const router = express.Router();
 
-router.get("/", (req, res) => {
+router.get("/", requireAuth, (req, res) => {
     try {
         const { q } = req.query;
 
@@ -18,7 +19,7 @@ router.get("/", (req, res) => {
 });
 
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireAuth, async (req, res) => {
     try {
         const userId = parseInt(req.params.id);
         const user = await getUserById(userId);
@@ -35,7 +36,7 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-router.post("/create", async (req, res) => {
+router.post("/create", requireAuth, async (req, res) => {
     try {
         const { username, email, password, displayName } = req.body;
 
@@ -85,7 +86,7 @@ router.post("/create", async (req, res) => {
     }
 });
 
-router.post("/:id/last-seen", async (req, res) => {
+router.post("/:id/last-seen", requireAuth, async (req, res) => {
     try {
         const userId  = parseInt(req.params.id);
 
@@ -102,7 +103,7 @@ router.post("/:id/last-seen", async (req, res) => {
     }
 });
 
-router.get("/:id/last-seen", async (req, res) => {
+router.get("/:id/last-seen", requireAuth, async (req, res) => {
     try {
         const userId  = parseInt(req.params.id);
 

@@ -14,23 +14,26 @@ import authRoutes from "./routes/auth.js";
 dotenv.config();
 
 const app = express();
+
+export const sessionMiddleware = session({
+    name: "chat.sid",
+    secret: "dev-secret-key",
+    resave: false,
+    saveUninitialized: false,
+    rolling: true,
+    cookie: {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: false,
+        maxAge: 1000 * 60 * 30,
+    },
+});
+
 app.use(cors({
     origin: "http://localhost:5173",
     credentials: true,
 }));
-app.use(
-    session({
-        name: "chat.sid",
-        secret: "dev-secret-key", // move to env later
-        resave: false,
-        saveUninitialized: false,
-        cookie: {
-            httpOnly: true,
-            sameSite: "lax",
-            secure: false, // true in HTTPS prod
-        },
-    })
-);
+app.use(sessionMiddleware);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 

@@ -1,65 +1,82 @@
 import { Server } from "socket.io";
 import { updateUserLastSeen } from "./db/users.js";
+import { sessionMiddleware } from "./index.js"; 
+// 👆 this must be the SAME session middleware used by Express
 
-export const onlineUsers = new Map(); // userId -> socketId
+export const onlineUsers = new Map(); // userId -> Set<socketId>
 export let io = null;
 
-/**
- * Initialize socket.io and register all handlers
- */
 export function registerSockets(server) {
   io = new Server(server, {
     cors: {
       origin: "http://localhost:5173",
-      methods: ["GET", "POST"],
+      credentials: true, // 🔑 REQUIRED for cookies
     },
   });
 
   console.log("Socket server initialized");
 
-  /**
-   * Broadcast online user IDs to all clients
-   */
+  /* ---------------------------------------------------------
+     🔑 Attach express-session to Socket.IO
+     --------------------------------------------------------- */
+  io.use((socket, next) => {
+    sessionMiddleware(socket.request, {}, next);
+  });
+
+  /* ---------------------------------------------------------
+     Helper: broadcast online users
+     --------------------------------------------------------- */
   function broadcastOnlineUsers() {
     io.emit("users:online", Array.from(onlineUsers.keys()));
-    console.log("Broadcasting online users:", [...onlineUsers.keys()]);
+    console.log("Online users:", [...onlineUsers.keys()]);
   }
 
+  /* ---------------------------------------------------------
+     Connection handler
+     --------------------------------------------------------- */
   io.on("connection", (socket) => {
-    console.log("Socket connected:", socket.id);
+    const session = socket.request.session;
+    const userId = session?.userId;
 
-    /**
-     * User comes online
-     */
-    socket.on("user:online", ({ userId }) => {
-      if (!userId) return;
+    // 🔒 Reject unauthenticated sockets
+    if (!userId) {
+      console.log("Socket rejected (no session):", socket.id);
+      socket.disconnect(true);
+      return;
+    }
 
-      const uid = Number(userId);
+    console.log(`Socket connected: ${socket.id} (user ${userId})`);
 
-      // 🔑 Bind userId to this socket
-      socket.data.userId = uid;
+    socket.data.userId = userId;
 
-      onlineUsers.set(uid, socket.id);
-      console.log(`User ${uid} is online`);
+    /* -----------------------------------------------------
+       Track online users (support multi-tabs)
+       ----------------------------------------------------- */
+    if (!onlineUsers.has(userId)) {
+      onlineUsers.set(userId, new Set());
+    }
+    onlineUsers.get(userId).add(socket.id);
 
-      broadcastOnlineUsers();
-    });
+    broadcastOnlineUsers();
 
-    /**
-     * Handle disconnect (ONLY place offline is handled)
-     */
+    /* -----------------------------------------------------
+       Disconnect handling
+       ----------------------------------------------------- */
     socket.on("disconnect", async () => {
-      const userId = socket.data.userId;
+      console.log(`Socket disconnected: ${socket.id}`);
 
-      if (userId) {
+      const sockets = onlineUsers.get(userId);
+      if (!sockets) return;
+
+      sockets.delete(socket.id);
+
+      // If user has no remaining sockets → offline
+      if (sockets.size === 0) {
         onlineUsers.delete(userId);
-        console.log(`User ${userId} went offline`);
-
         await updateUserLastSeen(userId);
         broadcastOnlineUsers();
+        console.log(`User ${userId} is now offline`);
       }
-
-      console.log("Socket disconnected:", socket.id);
     });
   });
 

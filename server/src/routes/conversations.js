@@ -1,9 +1,9 @@
 import express from 'express';
 import { getUserConversations, getOrCreateDirectConversation, updateLastConversationReadAt } from "../db/conversations.js";
-
+import { requireAuth } from '../middleware/requireAuth.js';
 const router = express.Router();
 
-router.get("/:userId", async (req, res) => {
+router.get("/:userId", requireAuth, async (req, res) => {
     try {
         const userId = parseInt(req.params.userId);
         const conversations = await getUserConversations(userId);
@@ -17,7 +17,7 @@ router.get("/:userId", async (req, res) => {
     }
 });
 
-router.post("/directChat", async (req, res) => {
+router.post("/directChat", requireAuth, async (req, res) => {
     try {
         const userId1 = parseInt(req.body.userId1);
         const userId2 = parseInt(req.body.userId2);
@@ -31,7 +31,7 @@ router.post("/directChat", async (req, res) => {
     }
 });
 
-router.post("/:conversationId/read", async (req, res) => {
+router.post("/:conversationId/read", requireAuth, async (req, res) => {
     try {
         console.log("SESSION:", req.session);
 

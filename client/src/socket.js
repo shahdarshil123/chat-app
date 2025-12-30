@@ -2,36 +2,49 @@ import { io } from "socket.io-client";
 
 let socket = null;
 
-export function connectSocket(userId) {
-    if (socket) return socket;
+/**
+ * Connect socket using SESSION-BASED AUTH
+ * Identity is derived on the SERVER from cookies
+ */
+export function connectSocket() {
+  if (socket) return socket;
 
-    socket = io("http://localhost:4000", {
-        transports: ["websocket"],
-        autoConnect: true,
-    });
+  socket = io("http://localhost:4000", {
+    withCredentials: true,      // 🔑 send session cookie
+    transports: ["websocket"],
+    autoConnect: true,
+  });
 
-    socket.on("connect", () => {
-        console.log("Socket connected:", socket.id);
+  socket.on("connect", () => {
+    console.log("Socket connected:", socket.id);
+  });
 
-        // ✅ announce identity (only online is client-driven)
-        socket.emit("user:online", { userId });
-    });
+  socket.on("disconnect", (reason) => {
+    console.log("Socket disconnected:", reason);
+  });
 
-    socket.on("disconnect", (reason) => {
-        console.log("Socket disconnected:", reason);
-        // ❌ NO emits here
-    });
+  socket.on("connect_error", (err) => {
+    console.error("Socket connection error:", err.message);
 
-    return socket;
+    // Optional: handle auth failure
+    if (err.message === "Unauthorized") {
+      console.warn("Socket unauthorized — session expired");
+    }
+  });
+
+  return socket;
 }
 
+/**
+ * Disconnect socket explicitly (used on logout)
+ */
 export function disconnectSocket() {
-    if (socket) {
-        socket.disconnect(); // triggers server-side disconnect
-        socket = null;
-    }
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
 }
 
 export function getSocket() {
-    return socket;
+  return socket;
 }

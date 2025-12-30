@@ -44,29 +44,29 @@ router.post('/login', async (req, res) => {
 });
 
 router.post("/logout", (req, res) => {
-    // If no session exists, just return success
-    if (!req.session) {
-        return res.json({ success: true });
-    }
+    const userId = req.session?.userId;
 
-    // 1️⃣ Destroy session on SERVER
     req.session.destroy(err => {
         if (err) {
-            console.error("Session destroy error:", err);
+            console.error("Logout error:", err);
             return res.status(500).json({ error: "Logout failed" });
         }
 
-        // 2️⃣ Clear cookie on BROWSER
+        // 🔑 FORCE SOCKET DISCONNECT
+        if (userId) {
+            disconnectUserSockets(userId);
+        }
+
+        // Clear cookie
         res.clearCookie("chat.sid", {
-            path: "/",          // MUST match session cookie path
-            sameSite: "lax",    // MUST match cookie settings
-            secure: false,      // true in HTTPS prod
+            path: "/",
+            sameSite: "lax",
+            secure: false,
         });
 
         res.json({ success: true });
     });
 });
-
 router.get("/me", (req, res) => {
     if (!req.session.userId) {
         return res.status(401).json({ error: "Not authenticated" });
