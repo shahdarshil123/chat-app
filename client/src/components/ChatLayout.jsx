@@ -106,7 +106,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
             .toUpperCase(),
           lastMessage: "",
           lastTime: "",
-          unread: 0,
+          unread: item.unreadCount,
           lastReadAt: item.lastReadAt, // backend read timestamp
         };
       });
@@ -198,7 +198,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
   /* ================================
      Actions
   ================================ */
-  function selectConversation(id) {
+  async function selectConversation(id) {
     setActiveId(id);
 
     // Optimistically mark conversation as read in UI
@@ -214,6 +214,23 @@ export default function ChatLayout({ currentUser, onLogout }) {
           : c
       )
     );
+
+    const res = await fetch(
+      `http://localhost:4000/api/conversation/${activeId}/read`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationId: activeId,
+          userId: CURRENT_USER_ID,
+        }),
+      }
+    );
+
+    const message = await res.json();
+
+    console.log(message);
+
   }
 
   async function sendMessage(text) {

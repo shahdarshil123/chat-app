@@ -33,7 +33,31 @@ export async function getUserConversations(userId) {
         },
     });
 
-    return memberships;
+    // Calculate unread counts
+    const conversationsWithUnread = await Promise.all(
+        memberships.map(async (m) => {
+            const unreadCount = await prisma.message.count({
+                where: {
+                    conversationId: m.conversationId,
+                    createdAt: {
+                        gt: m.lastReadAt,
+                    },
+                    senderId: {
+                        not: userId,
+                    },
+                },
+            });
+
+            return {
+                ...m,
+                unreadCount,
+                lastReadAt: m.lastReadAt,
+            };
+        })
+    );
+
+    return conversationsWithUnread;
+    // return memberships;
 }
 
 
@@ -70,6 +94,20 @@ export async function getOrCreateDirectConversation(userId1, userId2) {
                     { userId: userId2, role: 'member' },
                 ],
             },
+        },
+    });
+}
+
+export async function updateLastConversationReadAt(userId, conversationId) {
+    await prisma.conversationMember.update({
+        where: {
+            conversationId_userId: {
+                conversationId,
+                userId,
+            },
+        },
+        data: {
+            lastReadAt: new Date(),
         },
     });
 }
