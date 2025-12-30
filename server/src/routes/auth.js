@@ -17,7 +17,7 @@ router.post('/login', async(req, res)=>{
 
         const user = await getUserByEmail(email);
         console.log(user);
-        
+
         if(!user){
             return res.status(401).json({ error: 'Invalid credentials' });
         }
@@ -32,7 +32,7 @@ router.post('/login', async(req, res)=>{
         // Update status to online
         await updateUserLastSeen(user.id);
 
-        res.json({message: "Valid user credentials"});
+        res.json({id: user.id, email: user.email, displayName: user.displayName, lastSeen: user.lastSeen});
 
     }
     catch(error){

@@ -10,12 +10,15 @@ import { connectSocket, disconnectSocket } from "../socket";
 /* ================================
    Temporary Logged-in User
 ================================ */
-const CURRENT_USER_ID = 2;
+// const CURRENT_USER_ID = 2;
 
 /* ================================
    Chat Layout
 ================================ */
-export default function ChatLayout({ onLogout }) {
+export default function ChatLayout({ currentUser, onLogout }) {
+  
+  const CURRENT_USER_ID =  currentUser.id;
+
   const [conversations, setConversations] = useState([]);
   const [messages, setMessages] = useState({});
   const [activeId, setActiveId] = useState(null);
