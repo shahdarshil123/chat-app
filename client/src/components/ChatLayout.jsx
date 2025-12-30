@@ -220,10 +220,11 @@ export default function ChatLayout({ currentUser, onLogout }) {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          conversationId: activeId,
-          userId: CURRENT_USER_ID,
-        }),
+        credentials: "include",
+        // body: JSON.stringify({
+        //   conversationId: activeId,
+        //   userId: CURRENT_USER_ID,
+        // }),
       }
     );
 

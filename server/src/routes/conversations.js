@@ -33,7 +33,9 @@ router.post("/directChat", async (req, res) => {
 
 router.post("/:conversationId/read", async (req, res) => {
     try {
-        const userId = req.body.userId; 
+        console.log("SESSION:", req.session);
+
+        const userId = req.session.userId; 
         const conversationId = Number(req.params.conversationId);
 
         if (!conversationId) {

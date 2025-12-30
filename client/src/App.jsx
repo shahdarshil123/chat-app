@@ -20,9 +20,17 @@ export default function App() {
     localStorage.setItem("currentUser", JSON.stringify(user));
   }
 
-  function handleLogout() {
+  async function handleLogout() {
     localStorage.removeItem("currentUser");
-    disconnectSocket()
+
+    disconnectSocket();
+
+    const message = await fetch("http://localhost:4000/api/auth/logout", {
+        method: "POST",
+        credentials: "include", // 🔑 REQUIRED
+      });
+    console.log(message);
+
     setCurrentUser(null);
   }
 
