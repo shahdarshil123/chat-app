@@ -16,8 +16,8 @@ import { connectSocket, disconnectSocket } from "../socket";
    Chat Layout
 ================================ */
 export default function ChatLayout({ currentUser, onLogout }) {
-  
-  const CURRENT_USER_ID =  currentUser.id;
+
+  const CURRENT_USER_ID = currentUser.id;
 
   const [conversations, setConversations] = useState([]);
   const [messages, setMessages] = useState({});
@@ -38,6 +38,29 @@ export default function ChatLayout({ currentUser, onLogout }) {
         const copy = new Set(prev);
         copy.delete(userId);
         return copy;
+      });
+    });
+
+    socket.on("message:new", (msg) => {
+      setMessages(prev => {
+        const existing = prev[msg.conversationId] || [];
+
+        return {
+          ...prev,
+          [msg.conversationId]: dedupeMessages([
+            ...existing,
+            {
+              id: msg.id,
+              fromSelf: msg.senderId === CURRENT_USER_ID,
+              text: msg.content,
+              createdAt: msg.createdAt,
+              time: new Date(msg.createdAt).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            },
+          ]),
+        };
       });
     });
 
@@ -302,7 +325,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
       {/* ===== Main Chat ===== */}
       <section className="main">
         <ConversationHeader conversation={activeConversation}
-        onlineUsers = {onlineUsers} />
+          onlineUsers={onlineUsers} />
 
         <MessageFeed
           messages={activeMessages}
