@@ -13,6 +13,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./scripts:/scripts
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U chat_user -d chat_app"]
       interval: 5s
