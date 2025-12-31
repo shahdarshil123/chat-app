@@ -1,10 +1,32 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
-export default function MessageFeed({ messages = [], unreadStartId }) {
+export default function MessageFeed({ messages = [], unreadStartId, activeId }) {
   const containerRef = useRef(null);
   const bottomRef = useRef(null);
 
-  // Auto-scroll ONLY when new messages arrive at the bottom
+  // Track previous conversation + messages reference
+  const prevConversationRef = useRef(null);
+  const prevMessagesRef = useRef(null);
+
+  // 1️⃣ Detect conversation switch OR message dataset replacement
+  const shouldForceScroll =
+    prevConversationRef.current !== activeId ||
+    prevMessagesRef.current !== messages;
+
+  // 2️⃣ After render, force scroll once
+  useLayoutEffect(() => {
+    if (!activeId) return;
+    if (!shouldForceScroll) return;
+
+    requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "auto" });
+    });
+
+    prevConversationRef.current = activeId;
+    prevMessagesRef.current = messages;
+  });
+
+  // 3️⃣ Smart auto-scroll for new messages (same conversation)
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -12,13 +34,12 @@ export default function MessageFeed({ messages = [], unreadStartId }) {
     const isNearBottom =
       container.scrollHeight -
         container.scrollTop -
-        container.clientHeight <
-      80; // px threshold
+        container.clientHeight < 80;
 
     if (isNearBottom) {
       bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages]); // 🔑 depend on entire array, not length
+  }, [messages]);
 
   return (
     <div className="messages" ref={containerRef}>
@@ -28,18 +49,14 @@ export default function MessageFeed({ messages = [], unreadStartId }) {
             <div className="unread-divider">Unread messages</div>
           )}
 
-          <div
-            className={`message-row ${m.fromSelf ? "self" : "other"}`}
-          >
+          <div className={`message-row ${m.fromSelf ? "self" : "other"}`}>
             <div className="message">
               <span>{m.text}</span>
 
               <div className="message-meta">
                 <span className="time">{m.time}</span>
                 {m.fromSelf && (
-                  <span className={`ticks ${m.status ?? "sent"}`}>
-                    ✓✓
-                  </span>
+                  <span className={`ticks ${m.status ?? "sent"}`}>✓✓</span>
                 )}
               </div>
             </div>
@@ -47,7 +64,6 @@ export default function MessageFeed({ messages = [], unreadStartId }) {
         </div>
       ))}
 
-      {/* Scroll anchor */}
       <div ref={bottomRef} />
     </div>
   );

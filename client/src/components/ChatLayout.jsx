@@ -384,6 +384,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
         <MessageFeed
           messages={activeMessages}
           unreadStartId={unreadStartId}
+          activeId={activeId}
         />
 
         <MessageInput onSend={sendMessage} />
