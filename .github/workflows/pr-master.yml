@@ -1,0 +1,43 @@
+name: PR – Master – Gatekeeper
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  branch-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce source branch
+        run: |
+          echo "PR source branch: ${{ github.head_ref }}"
+          if [ "${{ github.head_ref }}" != "development" ]; then
+            echo "❌ Only PRs from 'development' can merge into master"
+            exit 1
+          fi
+
+  build:
+    runs-on: ubuntu-latest
+    needs: branch-policy
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build server image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./server
+          file: ./server/Dockerfile
+          push: false
+
+      - name: Build client image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./client
+          file: ./client/Dockerfile
+          push: false

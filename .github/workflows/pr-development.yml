@@ -1,4 +1,4 @@
-name: PR – Build & Validate
+name: PR – Development – Build & Validate
 
 on:
   pull_request:
@@ -10,28 +10,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout PR code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 3️⃣ Build SERVER image (no push)
       - name: Build server image
         uses: docker/build-push-action@v5
         with:
           context: ./server
           file: ./server/Dockerfile
           push: false
-          tags: chat-app-server:pr
 
-      # 4️⃣ Build CLIENT image (no push)
       - name: Build client image
         uses: docker/build-push-action@v5
         with:
           context: ./client
           file: ./client/Dockerfile
           push: false
-          tags: chat-app-client:pr
