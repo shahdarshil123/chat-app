@@ -16,7 +16,7 @@ export default function ConversationList({ conversations, activeId, onSelect }) 
                         </div>
 
                         <div className="bottom">
-                            {/* <span className="preview">{c.lastMessage}</span> */}
+                            <span className="preview">{c.lastMessage}</span>
                             {c.unread > 0 && <span className="badge">{c.unread}</span>}
                         </div>
                     </div>
