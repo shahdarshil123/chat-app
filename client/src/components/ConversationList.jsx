@@ -6,17 +6,24 @@ export default function ConversationList({
   onSelect,
 }) {
   function getUnreadCount(conversation) {
-    const convoMessages = messages[conversation.id] || [];
-    if (!conversation.lastReadAt) return 0;
+  const convoMessages = messages[conversation.id];
 
-    const lastRead = new Date(conversation.lastReadAt).getTime();
-
-    return convoMessages.filter(
-      m =>
-        !m.fromSelf &&
-        new Date(m.createdAt).getTime() > lastRead
-    ).length;
+  // ✅ LOGIN CASE: messages not loaded yet
+  if (!convoMessages) {
+    return conversation.unread ?? 0;
   }
+
+  // ✅ AFTER OPENING CHAT: derive from messages
+  if (!conversation.lastReadAt) return 0;
+
+  const lastRead = new Date(conversation.lastReadAt).getTime();
+
+  return convoMessages.filter(
+    m =>
+      !m.fromSelf &&
+      new Date(m.createdAt).getTime() > lastRead
+  ).length;
+}
 
   return (
     <div className="conversation-list">

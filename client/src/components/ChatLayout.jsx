@@ -24,6 +24,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
   const [messages, setMessages] = useState({});
   const [activeId, setActiveId] = useState(null); // Active conversation id
   const [search, setSearch] = useState("");
+  const [unreadBoundary, setUnreadBoundary] = useState({});
   // const [activeConversation, setActiveConversation]= useState("");
 
   const [onlineUsers, setOnlineUsers] = useState(new Set());
@@ -135,6 +136,8 @@ export default function ChatLayout({ currentUser, onLogout }) {
     loadConversations();
   }, []);
 
+
+
   /* ================================
      Load Messages (per conversation)
   ================================ */
@@ -174,6 +177,30 @@ export default function ChatLayout({ currentUser, onLogout }) {
     loadMessages();
   }, [activeId]);
 
+  useEffect(() => {
+  if (!activeId) return;
+
+  // once messages are rendered, mark as read
+  const timeout = setTimeout(async () => {
+    const now = new Date().toISOString();
+
+    setConversations(prev =>
+      prev.map(c =>
+        c.id === activeId
+          ? { ...c, unread: 0, lastReadAt: now }
+          : c
+      )
+    );
+
+    await fetch(
+      `http://localhost:4000/api/conversation/${activeId}/read`,
+      { method: "POST", credentials: "include" }
+    );
+  }, 300); // small delay ensures render completed
+
+  return () => clearTimeout(timeout);
+}, [activeId]);
+
   /* ================================
      Derived State
   ================================ */
@@ -196,24 +223,32 @@ export default function ChatLayout({ currentUser, onLogout }) {
      (incoming only, backend-driven)
   ================================ */
   const unreadStartId = useMemo(() => {
-    if (!activeConversation?.lastReadAt) return null;
+  const boundary = unreadBoundary[activeId];
+  if (!boundary) return null;
 
-    const lastReadTime = new Date(
-      activeConversation.lastReadAt
-    ).getTime();
+  const boundaryTime = new Date(boundary).getTime();
 
-    return activeMessages.find(
-      m =>
-        !m.fromSelf &&
-        new Date(m.createdAt).getTime() > lastReadTime
-    )?.id ?? null;
-  }, [activeConversation, activeMessages]);
+  return activeMessages.find(
+    m =>
+      !m.fromSelf &&
+      new Date(m.createdAt).getTime() > boundaryTime
+  )?.id ?? null;
+}, [activeId, activeMessages, unreadBoundary]);
+
 
   /* ================================
      Actions
   ================================ */
   async function selectConversation(id) {
     setActiveId(id);
+
+    const convo = conversations.find(c => c.id === id);
+    if (convo?.lastReadAt) {
+      setUnreadBoundary(prev => ({
+        ...prev,
+        [id]: convo.lastReadAt, // 🔒 freeze boundary
+      }));
+    }
 
     // Optimistically mark conversation as read in UI
     const now = new Date().toISOString();
@@ -223,7 +258,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
           ? {
             ...c,
             unread: 0,
-            lastReadAt: now,
+            // lastReadAt: now,
           }
           : c
       )
