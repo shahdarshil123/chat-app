@@ -1,6 +1,6 @@
 /**
- * Prisma Seed Script – Full (Schema-Aligned)
- * ------------------------------------------
+ * Prisma Seed Script – Full (Schema-Aligned, bcrypt)
+ * --------------------------------------------------
  * Seeds:
  *  - Users
  *  - Direct conversations (1-on-1)
@@ -14,7 +14,7 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import crypto from "crypto";
+import bcrypt from "bcrypt";
 
 // --------------------------------------------------
 // Environment validation
@@ -24,7 +24,7 @@ if (!process.env.DATABASE_URL) {
 }
 
 // --------------------------------------------------
-// Prisma Client (v7 requires adapter)
+// Prisma Client (adapter required for Prisma v7)
 // --------------------------------------------------
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL,
@@ -33,10 +33,12 @@ const adapter = new PrismaPg({
 const prisma = new PrismaClient({ adapter });
 
 // --------------------------------------------------
-// Helpers
+// Password hashing helper (bcrypt)
 // --------------------------------------------------
-function hashPassword(password) {
-  return crypto.createHash("sha256").update(password).digest("hex");
+const SALT_ROUNDS = 10;
+
+async function hashPassword(password) {
+  return bcrypt.hash(password, SALT_ROUNDS);
 }
 
 // --------------------------------------------------
@@ -74,11 +76,11 @@ async function getOrCreateDirectConversation(user1, user2) {
 }
 
 async function getOrCreateGroupConversation(name, creator, users) {
-  let conversation = await prisma.conversation.findFirst({
+  const existing = await prisma.conversation.findFirst({
     where: { isGroup: true, name },
   });
 
-  if (conversation) return conversation;
+  if (existing) return existing;
 
   return prisma.conversation.create({
     data: {
@@ -110,7 +112,7 @@ async function main() {
     create: {
       username: "alice",
       email: "alice@example.com",
-      passwordHash: hashPassword("password123"),
+      passwordHash: await hashPassword("password123"),
       displayName: "Alice Smith",
       avatarUrl: "https://i.pravatar.cc/150?img=1",
       status: "online",
@@ -123,7 +125,7 @@ async function main() {
     create: {
       username: "bob",
       email: "bob@example.com",
-      passwordHash: hashPassword("password123"),
+      passwordHash: await hashPassword("password123"),
       displayName: "Bob Johnson",
       avatarUrl: "https://i.pravatar.cc/150?img=2",
       status: "online",
@@ -136,7 +138,7 @@ async function main() {
     create: {
       username: "charlie",
       email: "charlie@example.com",
-      passwordHash: hashPassword("password123"),
+      passwordHash: await hashPassword("password123"),
       displayName: "Charlie Brown",
       avatarUrl: "https://i.pravatar.cc/150?img=3",
       status: "offline",
@@ -149,7 +151,7 @@ async function main() {
     create: {
       username: "diana",
       email: "diana@example.com",
-      passwordHash: hashPassword("password123"),
+      passwordHash: await hashPassword("password123"),
       displayName: "Diana Prince",
       avatarUrl: "https://i.pravatar.cc/150?img=4",
       status: "away",
@@ -162,7 +164,10 @@ async function main() {
   console.log("💬 Seeding conversations...");
 
   const convAliceBob = await getOrCreateDirectConversation(alice, bob);
-  const convAliceCharlie = await getOrCreateDirectConversation(alice, charlie);
+  const convAliceCharlie = await getOrCreateDirectConversation(
+    alice,
+    charlie
+  );
 
   const engineeringTeam = await getOrCreateGroupConversation(
     "Engineering Team",
