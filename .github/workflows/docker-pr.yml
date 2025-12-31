@@ -3,7 +3,7 @@ name: PR – Build & Validate
 on:
   pull_request:
     branches:
-      - master
+      - development
 
 jobs:
   pr-build:
