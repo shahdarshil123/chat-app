@@ -75,7 +75,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
   useEffect(() => {
     async function loadConversations() {
       const res = await fetch(
-        `http://localhost:4000/api/conversation/${CURRENT_USER_ID}`
+        `http://localhost:4000/api/conversation/${CURRENT_USER_ID}`,{credentials: "include"}
       );
       const json = await res.json();
       console.log(json);
@@ -129,7 +129,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
 
     async function loadMessages() {
       const res = await fetch(
-        `http://localhost:4000/api/message/${activeId}/messages`
+        `http://localhost:4000/api/message/${activeId}/messages`, {credentials: "include"}
       );
       const json = await res.json();
 

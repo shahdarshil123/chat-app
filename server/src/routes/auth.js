@@ -1,5 +1,6 @@
 import express from 'express';
 import { createUser, getUserByEmail, verifyPassword, updateUserLastSeen } from '../db/users.js';
+// import { disconnectUserSockets } from '../sockets.js';
 
 const router = express.Router();
 
@@ -53,9 +54,9 @@ router.post("/logout", (req, res) => {
         }
 
         // 🔑 FORCE SOCKET DISCONNECT
-        if (userId) {
-            disconnectUserSockets(userId);
-        }
+        // if (userId) {
+        //     disconnectUserSockets(userId);
+        // }
 
         // Clear cookie
         res.clearCookie("chat.sid", {

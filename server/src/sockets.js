@@ -79,6 +79,4 @@ export function registerSockets(server) {
       }
     });
   });
-
-  return io;
 }
