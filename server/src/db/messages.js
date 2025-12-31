@@ -1,23 +1,19 @@
 import prisma from "./prisma.js";
-import { onlineUsers } from "../sockets.js";
-import { io } from "../sockets.js";
+import { io, onlineUsers } from "../sockets.js";
 
 export async function saveMessage(data) {
     const { conversationId, senderId, content } = data;
-    if (conversationId === null || conversationId === undefined) {
-        return {}
+
+    if (!conversationId || !senderId || !content) {
+        throw new Error("Invalid message payload");
     }
-    if (senderId === null || senderId === undefined) {
-        return {}
-    }
-    if (content === null || content === undefined) {
-        return {}
-    }
+
+    // 1️⃣ Save message
     const message = await prisma.message.create({
         data: {
-            conversationId: data.conversationId,
-            senderId: data.senderId,
-            content: data.content,
+            conversationId: Number(conversationId),
+            senderId: Number(senderId),
+            content,
         },
         include: {
             sender: {
@@ -25,45 +21,45 @@ export async function saveMessage(data) {
                     id: true,
                     username: true,
                     displayName: true,
-                }
-            }
-        }
+                },
+            },
+        },
     });
 
     // 2️⃣ Fetch conversation members
     const conversation = await prisma.conversation.findUnique({
         where: { id: Number(conversationId) },
-        include: { members: true }, // members: [{ userId }]
+        include: {
+            members: {
+                select: { userId: true },
+            },
+        },
     });
 
     if (!conversation) {
-        return res.status(404).json({ error: "Conversation not found" });
+        throw new Error("Conversation not found");
     }
 
+    // 3️⃣ Emit message to ALL members (including sender)
+    for (const member of conversation.members) {
+        const sockets = onlineUsers.get(member.userId);
 
-    // 3️⃣ Derive ALL recipient userIds (exclude sender)
-    const recipientIds = conversation.members
-        .map(m => m.userId)
-        .filter(userId => userId !== senderId);
+        if (!sockets) continue; // user offline
 
-    // 4️⃣ Emit socket event to EACH online recipient
-    for (const userId of recipientIds) {
-        const socketId = onlineUsers.get(userId);
-        if (socketId) {
+        for (const socketId of sockets) {
             io.to(socketId).emit("message:new", {
                 id: message.id,
                 conversationId: message.conversationId,
                 senderId: message.senderId,
                 content: message.content,
                 createdAt: message.createdAt,
+                sender: message.sender,
             });
         }
     }
 
     return message;
 }
-
-
 export async function getMessages(conversationId) {
     if (conversationId === null || conversationId === undefined) {
         return null;

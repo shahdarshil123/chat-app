@@ -9,7 +9,7 @@ router.post("/:conversationId/messages", requireAuth, async (req, res)=>{
         // const conversationId = parseInt(req.params.conversationId);
         // const {conversationId, senderId, content} = req.body;
         const conversationId = parseInt(req.body.conversationId);
-        const senderId = parseInt(req.body.senderId);
+        const senderId = req.session?.userId;
         const content = req.body.content;
 
         if (!content || content.trim().length === 0) {

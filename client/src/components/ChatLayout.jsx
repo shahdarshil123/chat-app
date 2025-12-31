@@ -241,10 +241,11 @@ export default function ChatLayout({ currentUser, onLogout }) {
       `http://localhost:4000/api/message/${activeId}/messages`,
       {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           conversationId: activeId,
-          senderId: CURRENT_USER_ID,
+          // senderId: CURRENT_USER_ID,
           content: text,
         }),
       }
