@@ -5,6 +5,7 @@ import MessageFeed from "./MessageFeed";
 import MessageInput from "./MessageInput";
 
 import { connectSocket, disconnectSocket } from "../socket";
+import { preconnect } from "react-dom";
 
 
 /* ================================
@@ -38,14 +39,14 @@ export default function ChatLayout({ currentUser, onLogout }) {
   });
 
   socket.on("message:new", (msg) => {
-    setMessages(prev => {
-      const existing = prev[msg.conversationId] || [];
+  // 1️⃣ Update messages
+  setMessages(prev => {
+    const existing = prev[msg.conversationId] || [];
+    if (existing.some(m => m.id === msg.id)) return prev;
 
-      if (existing.some(m => m.id === msg.id)) {
-        return prev;
-      }
-
-      const mapped = {
+    return {
+      ...prev,
+      [msg.conversationId]: [...existing, {
         id: msg.id,
         fromSelf: msg.senderId === CURRENT_USER_ID,
         text: msg.content,
@@ -54,19 +55,28 @@ export default function ChatLayout({ currentUser, onLogout }) {
           hour: "2-digit",
           minute: "2-digit",
         }),
-      };
-
-      return {
-        ...prev,
-        [msg.conversationId]: [...existing, mapped],
-      };
-    });
+      }],
+    };
   });
 
-  return () => {
-    socket.off("users:online");
-    socket.off("message:new");
-  };
+  // 2️⃣ Update conversation preview ONLY
+  setConversations(prev =>
+    prev.map(c =>
+      c.id === String(msg.conversationId)
+        ? {
+            ...c,
+            lastMessage: msg.content,
+            lastTime: new Date(msg.createdAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          }
+        : c
+    )
+  );
+});
+
+
 }, [CURRENT_USER_ID]);
 
   /* ================================
@@ -312,10 +322,11 @@ export default function ChatLayout({ currentUser, onLogout }) {
         />
 
         <ConversationList
-          conversations={filteredConversations}
-          activeId={activeId}
-          onSelect={selectConversation}
-        />
+  conversations={filteredConversations}
+  messages={messages}
+  activeId={activeId}
+  onSelect={selectConversation}
+/>
 
         <div className="sidebar-footer">
           <button className="logout-button" onClick={onLogout}>

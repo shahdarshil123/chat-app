@@ -1,27 +1,50 @@
-export default function ConversationList({ conversations, activeId, onSelect }) {
-    return (
-        <div className="conversation-list">
-            {conversations.map(c => (
-                <button
-                    key={c.id}
-                    className={`conversation ${c.id === activeId ? "active" : ""}`}
-                    onClick={() => onSelect(c.id)}
-                >
-                    <div className="avatar">{c.avatar}</div>
+export default function ConversationList({
+  conversations,
+  messages,
+  activeId,
+  currentUserId,
+  onSelect,
+}) {
+  function getUnreadCount(conversation) {
+    const convoMessages = messages[conversation.id] || [];
+    if (!conversation.lastReadAt) return 0;
 
-                    <div className="meta">
-                        <div className="top">
-                            <span className="title">{c.title}</span>
-                            <span className="time">{c.lastTime}</span>
-                        </div>
+    const lastRead = new Date(conversation.lastReadAt).getTime();
 
-                        <div className="bottom">
-                            <span className="preview">{c.lastMessage}</span>
-                            {c.unread > 0 && <span className="badge">{c.unread}</span>}
-                        </div>
-                    </div>
-                </button>
-            ))}
-        </div>
-    );
+    return convoMessages.filter(
+      m =>
+        !m.fromSelf &&
+        new Date(m.createdAt).getTime() > lastRead
+    ).length;
+  }
+
+  return (
+    <div className="conversation-list">
+      {conversations.map(c => {
+        const unread = getUnreadCount(c);
+
+        return (
+          <button
+            key={c.id}
+            className={`conversation ${c.id === activeId ? "active" : ""}`}
+            onClick={() => onSelect(c.id)}
+          >
+            <div className="avatar">{c.avatar}</div>
+
+            <div className="meta">
+              <div className="top">
+                <span className="title">{c.title}</span>
+                <span className="time">{c.lastTime}</span>
+              </div>
+
+              <div className="bottom">
+                <span className="preview">{c.lastMessage}</span>
+                {unread > 0 && <span className="badge">{unread}</span>}
+              </div>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
