@@ -39,16 +39,20 @@ export default function ChatLayout({ currentUser, onLogout }) {
   });
 
   socket.on("message:new", (msg) => {
-  // 1️⃣ Update messages
+  // ❌ Ignore messages sent by myself
+  if (msg.senderId === CURRENT_USER_ID) return;
+
   setMessages(prev => {
-    const existing = prev[msg.conversationId] || [];
+    const cid = String(msg.conversationId);
+    const existing = prev[cid] || [];
+
     if (existing.some(m => m.id === msg.id)) return prev;
 
     return {
       ...prev,
-      [msg.conversationId]: [...existing, {
+      [cid]: [...existing, {
         id: msg.id,
-        fromSelf: msg.senderId === CURRENT_USER_ID,
+        fromSelf: false,
         text: msg.content,
         createdAt: msg.createdAt,
         time: new Date(msg.createdAt).toLocaleTimeString([], {
@@ -59,7 +63,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
     };
   });
 
-  // 2️⃣ Update conversation preview ONLY
+  // update sidebar preview
   setConversations(prev =>
     prev.map(c =>
       c.id === String(msg.conversationId)
@@ -294,18 +298,18 @@ export default function ChatLayout({ currentUser, onLogout }) {
     );
   }
 
-  function dedupeMessages(list) {
-    const unique = Array.from(new Map(list.map(m => [m.id, m])).values());
+  // function dedupeMessages(list) {
+  //   const unique = Array.from(new Map(list.map(m => [m.id, m])).values());
 
-    // Sort by creation time so temporary ids don't break ordering
-    unique.sort((a, b) => {
-      const ta = new Date(a.createdAt).getTime();
-      const tb = new Date(b.createdAt).getTime();
-      return ta - tb;
-    });
+  //   // Sort by creation time so temporary ids don't break ordering
+  //   unique.sort((a, b) => {
+  //     const ta = new Date(a.createdAt).getTime();
+  //     const tb = new Date(b.createdAt).getTime();
+  //     return ta - tb;
+  //   });
 
-    return unique;
-  }
+  //   return unique;
+  // }
 
   /* ================================
      Render
