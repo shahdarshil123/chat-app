@@ -1,9 +1,31 @@
-version: "3.9"
 services:
-  postgres:
-    image: postgres:14
-    container_name: chat_postgres
-    restart: unless-stopped
+  server:
+    build:
+      context: ./server
+    ports:
+      - "4000:4000"
+      - "5555:5555"
+    env_file:
+      - ./server/.env
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+    depends_on:
+      - db
+
+  client:
+    build:
+      context: ./client
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    depends_on:
+      - server
+
+  db:
+    image: postgres:15
     environment:
       POSTGRES_USER: chat_user
       POSTGRES_PASSWORD: chat_pass
@@ -11,7 +33,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
 
 volumes:
-  pg_data:
+  pgdata:
