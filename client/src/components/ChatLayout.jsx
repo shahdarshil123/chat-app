@@ -95,11 +95,12 @@ export default function ChatLayout({ currentUser, onLogout }) {
       .sort((a, b) => a.createdAt - b.createdAt);
 
     for (const msg of queued) {
-      await enqueueSend(async () => {
-        const res = await sendMessagePayload({
+      const res = await enqueueSend(async () => {
+         return await sendMessagePayload({
           conversationId: msg.conversationId,
           content: msg.content,
         });
+      });
 
         if (res.ok) {
           await removeFromOutbox(msg.id);
@@ -111,7 +112,6 @@ export default function ChatLayout({ currentUser, onLogout }) {
             ),
           }));
         }
-      });
     }
   } finally {
     flushingRef.current = false;
@@ -130,6 +130,9 @@ export default function ChatLayout({ currentUser, onLogout }) {
     const onConnect = () => {
       console.log("Socket reconnected → flushing outbox");
       flushOutbox();
+
+    loadMessages();
+
     }
 
     socket.on("users:online", handleOnline);
@@ -206,10 +209,8 @@ export default function ChatLayout({ currentUser, onLogout }) {
   /* ================================
      Load Messages (per conversation)
   ================================ */
-  useEffect(() => {
-    if (!activeId) return;
 
-    async function loadMessages() {
+  async function loadMessages() {
       const res = await fetch(
         `http://localhost:4000/api/message/${activeId}/messages`, { credentials: "include" }
       );
@@ -239,6 +240,8 @@ export default function ChatLayout({ currentUser, onLogout }) {
       }));
     }
 
+  useEffect(() => {
+    if (!activeId) return;
     loadMessages();
   }, [activeId]);
 
@@ -427,14 +430,14 @@ async function sendMessage(text) {
 
   try {
     // ---------- 5️⃣ Try sending to server ----------
-    await enqueueSend(async ()=>{
-      const res = await sendMessagePayload({
-      conversationId: activeId,
-      content: text,
-    });
-    });
-    
-    if (!res.ok) throw new Error("Send failed");
+    const res = await enqueueSend(async () => {
+  return await sendMessagePayload({
+    conversationId: activeId,
+    content: text,
+  });
+});
+
+if (!res.ok) throw new Error("Send failed");
 
     const saved = await res.json();
 
