@@ -1,8 +1,11 @@
 import { useState } from "react";
 
 export default function LoginPanel({ onLogin }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  
+    const [email, setEmail] = useState("alice@example.com");
+    const [password, setPassword] = useState("password123");
+  // const [email, setEmail] = useState("");
+  // const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   async function handleSubmit(e) {

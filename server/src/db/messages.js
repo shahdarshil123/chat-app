@@ -1,5 +1,5 @@
 import prisma from "./prisma.js";
-import { io, onlineUsers } from "../sockets.js";
+import { io } from "../sockets.js";
 
 export async function saveMessage(data) {
     const { conversationId, senderId, content } = data;
@@ -8,7 +8,6 @@ export async function saveMessage(data) {
         throw new Error("Invalid message payload");
     }
 
-    // 1️⃣ Save message
     const message = await prisma.message.create({
         data: {
             conversationId: Number(conversationId),
@@ -25,38 +24,6 @@ export async function saveMessage(data) {
             },
         },
     });
-
-    // 2️⃣ Fetch conversation members
-    const conversation = await prisma.conversation.findUnique({
-        where: { id: Number(conversationId) },
-        include: {
-            members: {
-                select: { userId: true },
-            },
-        },
-    });
-
-    if (!conversation) {
-        throw new Error("Conversation not found");
-    }
-
-    // 3️⃣ Emit message to ALL members (including sender)
-    for (const member of conversation.members) {
-        const sockets = onlineUsers.get(member.userId);
-
-        if (!sockets) continue; // user offline
-
-        for (const socketId of sockets) {
-            io.to(socketId).emit("message:new", {
-                id: message.id,
-                conversationId: message.conversationId,
-                senderId: message.senderId,
-                content: message.content,
-                createdAt: message.createdAt,
-                sender: message.sender,
-            });
-        }
-    }
 
     return message;
 }

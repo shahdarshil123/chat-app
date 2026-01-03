@@ -11,7 +11,9 @@ https://medium.com/@jholt1055/i-migrated-847-million-records-from-mongodb-to-pos
 Documentation:
 
 
-
+https://redis.io/tutorials/howtos/chatapp/
+https://redis.io/docs/latest/develop/clients/ioredis/
+https://redis.io/docs/latest/commands/redis-8-4-commands/
 
 
 Prisma:
@@ -21,3 +23,9 @@ https://www.prisma.io/docs/orm/prisma-schema/data-model/models
 https://www.prisma.io/docs/orm/reference/prisma-schema-reference#model
 
 React:
+
+
+
+https://www.youtube.com/watch?v=D84KrBwLDtUs
+
+https://www.linkedin.com/posts/shivam-ganguly-357b90255_buildinpublic-activity-7388944229114441728-nIJL?utm_source=share&utm_medium=member_desktop&rcm=ACoAADG9NbwBv0oeLv0qi5uTYamSwIPPZubLwnA
