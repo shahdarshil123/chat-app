@@ -4,7 +4,8 @@ import http from "http";
 import cors from "cors";
 import dotenv from "dotenv";
 import { registerSockets } from "./sockets.js";
-import {RedisStore}  from "connect-redis";
+// import {RedisStore}  from "connect-redis";
+import connectRedis from "connect-redis";
 import redis from "./redis/redis.js";
 
 //Import Routes
@@ -17,14 +18,15 @@ dotenv.config();
 
 const app = express();
 
+const RedisStore = connectRedis(session);
+
 const redisStore = new RedisStore({
     client: redis,
     prefix: "sess:",
-    ttl: 60*30,
 })
 
 export const sessionMiddleware = session({
-    // store: redisStore,
+    store: redisStore,
     name: "chat.sid",
     secret: "dev-secret-key",
     resave: false,
