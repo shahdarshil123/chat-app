@@ -6,6 +6,7 @@ import MessageInput from "./MessageInput";
 
 import { connectSocket, disconnectSocket } from "../socket";
 import { preconnect } from "react-dom";
+import { addToOutbox, getOutboxMessages, removeFromOutbox } from "../db/outbox";
 
 
 /* ================================
@@ -29,46 +30,45 @@ export default function ChatLayout({ currentUser, onLogout }) {
 
   const [onlineUsers, setOnlineUsers] = useState(new Set());
 
+  const socket = useMemo(
+    () => (CURRENT_USER_ID ? connectSocket(CURRENT_USER_ID) : null),
+    [CURRENT_USER_ID]
+  );
+
   useEffect(() => {
-  if (!CURRENT_USER_ID) return;
+  flushOutbox();
+}, []);
 
-  const socket = connectSocket(CURRENT_USER_ID);
+  const handleMessage = (msg) => {
+    // ❌ Ignore messages sent by myself
+    if (msg.senderId === CURRENT_USER_ID) return;
 
-  socket.on("users:online", (users) => {
-    console.log("users:online received:", users);
-    setOnlineUsers(new Set(users));
-  });
+    setMessages(prev => {
+      const cid = String(msg.conversationId);
+      const existing = prev[cid] || [];
 
-  socket.on("message:new", (msg) => {
-  // ❌ Ignore messages sent by myself
-  if (msg.senderId === CURRENT_USER_ID) return;
+      if (existing.some(m => m.id === msg.id)) return prev;
 
-  setMessages(prev => {
-    const cid = String(msg.conversationId);
-    const existing = prev[cid] || [];
+      return {
+        ...prev,
+        [cid]: [...existing, {
+          id: msg.id,
+          fromSelf: false,
+          text: msg.content,
+          createdAt: msg.createdAt,
+          time: new Date(msg.createdAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        }],
+      };
+    });
 
-    if (existing.some(m => m.id === msg.id)) return prev;
-
-    return {
-      ...prev,
-      [cid]: [...existing, {
-        id: msg.id,
-        fromSelf: false,
-        text: msg.content,
-        createdAt: msg.createdAt,
-        time: new Date(msg.createdAt).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      }],
-    };
-  });
-
-  // update sidebar preview
-  setConversations(prev =>
-    prev.map(c =>
-      c.id === String(msg.conversationId)
-        ? {
+    // update sidebar preview
+    setConversations(prev =>
+      prev.map(c =>
+        c.id === String(msg.conversationId)
+          ? {
             ...c,
             lastMessage: msg.content,
             lastTime: new Date(msg.createdAt).toLocaleTimeString([], {
@@ -76,13 +76,53 @@ export default function ChatLayout({ currentUser, onLogout }) {
               minute: "2-digit",
             }),
           }
-        : c
-    )
-  );
-});
+          : c
+      )
+    );
+  }
+
+  async function flushOutbox() {
+  const queued = await getOutboxMessages();
+  console.log("🧪 FLUSHING:", queued);
+
+  for (const msg of queued) {
+    try {
+      const res = await sendMessagePayload({conversationId: msg.conversationId, content: msg.content});
+      console.log("🧪 SENT STATUS:", res.status);
+      await removeFromOutbox(msg.id);
+    } catch (err) {
+      console.error("❌ Flush failed:", err);
+    }
+  }
+}
+
+  const handleOnline = (users) => {
+    console.log("users:online received:", users);
+    setOnlineUsers(new Set(users));
+  }
+
+  useEffect(() => {
+    if (!CURRENT_USER_ID) return;
+
+    socket.on("users:online", handleOnline);
+
+    socket.on("message:new", handleMessage);
+
+    socket.on("connect", flushOutbox);
+    window.addEventListener("online", flushOutbox);
+
+    return () => {
+      socket.off("users:online", handleOnline);
+      socket.off("message:new", handleMessage);
+      socket.off("connect", ()=>{
+        console.log("Socket reconnected → flushing outbox");
+        flushOutbox();
+    });
+    }
+
+  }, [socket]);
 
 
-}, [CURRENT_USER_ID]);
 
   /* ================================
      Load Conversations
@@ -90,7 +130,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
   useEffect(() => {
     async function loadConversations() {
       const res = await fetch(
-        `http://localhost:4000/api/conversation/${CURRENT_USER_ID}`,{credentials: "include"}
+        `http://localhost:4000/api/conversation/${CURRENT_USER_ID}`, { credentials: "include" }
       );
       const json = await res.json();
       console.log(json);
@@ -106,7 +146,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
           );
           //title = `User ${other?.userId ?? "Unknown"}`;
           const displayName = other.user.displayName;
-          title = !( displayName === null || displayName === undefined)? displayName: "Unknown" ;
+          title = !(displayName === null || displayName === undefined) ? displayName : "Unknown";
         }
 
         return {
@@ -146,7 +186,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
 
     async function loadMessages() {
       const res = await fetch(
-        `http://localhost:4000/api/message/${activeId}/messages`, {credentials: "include"}
+        `http://localhost:4000/api/message/${activeId}/messages`, { credentials: "include" }
       );
       const json = await res.json();
 
@@ -178,28 +218,28 @@ export default function ChatLayout({ currentUser, onLogout }) {
   }, [activeId]);
 
   useEffect(() => {
-  if (!activeId) return;
+    if (!activeId) return;
 
-  // once messages are rendered, mark as read
-  const timeout = setTimeout(async () => {
-    const now = new Date().toISOString();
+    // once messages are rendered, mark as read
+    const timeout = setTimeout(async () => {
+      const now = new Date().toISOString();
 
-    setConversations(prev =>
-      prev.map(c =>
-        c.id === activeId
-          ? { ...c, unread: 0, lastReadAt: now }
-          : c
-      )
-    );
+      setConversations(prev =>
+        prev.map(c =>
+          c.id === activeId
+            ? { ...c, unread: 0, lastReadAt: now }
+            : c
+        )
+      );
 
-    await fetch(
-      `http://localhost:4000/api/conversation/${activeId}/read`,
-      { method: "POST", credentials: "include" }
-    );
-  }, 300); // small delay ensures render completed
+      await fetch(
+        `http://localhost:4000/api/conversation/${activeId}/read`,
+        { method: "POST", credentials: "include" }
+      );
+    }, 300); // small delay ensures render completed
 
-  return () => clearTimeout(timeout);
-}, [activeId]);
+    return () => clearTimeout(timeout);
+  }, [activeId]);
 
   /* ================================
      Derived State
@@ -223,17 +263,17 @@ export default function ChatLayout({ currentUser, onLogout }) {
      (incoming only, backend-driven)
   ================================ */
   const unreadStartId = useMemo(() => {
-  const boundary = unreadBoundary[activeId];
-  if (!boundary) return null;
+    const boundary = unreadBoundary[activeId];
+    if (!boundary) return null;
 
-  const boundaryTime = new Date(boundary).getTime();
+    const boundaryTime = new Date(boundary).getTime();
 
-  return activeMessages.find(
-    m =>
-      !m.fromSelf &&
-      new Date(m.createdAt).getTime() > boundaryTime
-  )?.id ?? null;
-}, [activeId, activeMessages, unreadBoundary]);
+    return activeMessages.find(
+      m =>
+        !m.fromSelf &&
+        new Date(m.createdAt).getTime() > boundaryTime
+    )?.id ?? null;
+  }, [activeId, activeMessages, unreadBoundary]);
 
 
   /* ================================
@@ -283,54 +323,75 @@ export default function ChatLayout({ currentUser, onLogout }) {
 
   }
 
+  async function sendMessagePayload({ conversationId, content }) {
+  console.log("➡️ Sending to server:", {
+    conversationId,
+    content,
+  });
+
+  const res = await fetch(
+    `http://localhost:4000/api/message/${conversationId}/messages`,
+    {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversationId, content }),
+    }
+  );
+
+  console.log("⬅️ Server response status:", res.status);
+
+  return res;
+}
+
   async function sendMessage(text) {
-    if (!text.trim() || !activeId) return;
+    try {
 
-    const res = await fetch(
-      `http://localhost:4000/api/message/${activeId}/messages`,
-      {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          conversationId: activeId,
-          // senderId: CURRENT_USER_ID,
-          content: text,
+      if (!text.trim() || !activeId) return;
+
+      const res = await sendMessagePayload({conversationId:activeId, content: text});
+
+      const saved = await res.json();
+      const createdAt = saved.createdAt ?? new Date().toISOString();
+
+      const mapped = {
+        id: saved.id,
+        fromSelf: true,
+        text,
+        createdAt,
+        time: new Date(createdAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
         }),
-      }
-    );
-    const saved = await res.json();
-    const createdAt = saved.createdAt ?? new Date().toISOString();
+      };
 
-    const mapped = {
-      id: saved.id,
-      fromSelf: true,
-      text,
-      createdAt,
-      time: new Date(createdAt).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    };
+      // ✅ Append message (DO NOT replace, DO NOT dedupe)
+      setMessages(prev => ({
+        ...prev,
+        [activeId]: [...(prev[activeId] || []), mapped],
+      }));
 
-    // ✅ Append message (DO NOT replace, DO NOT dedupe)
-    setMessages(prev => ({
-      ...prev,
-      [activeId]: [...(prev[activeId] || []), mapped],
-    }));
-
-    // ✅ Update sidebar preview for this conversation
-    setConversations(prev =>
-      prev.map(c =>
-        c.id === activeId
-          ? {
-            ...c,
-            lastMessage: mapped.text,
-            lastTime: mapped.time,
-          }
-          : c
-      )
-    );
+      // ✅ Update sidebar preview for this conversation
+      setConversations(prev =>
+        prev.map(c =>
+          c.id === activeId
+            ? {
+              ...c,
+              lastMessage: mapped.text,
+              lastTime: mapped.time,
+            }
+            : c
+        )
+      );
+    }
+    catch {
+      await addToOutbox({
+        id: crypto.randomUUID(),
+        conversationId: activeId,
+        content: text,
+        createdAt: Date.now(),
+      });
+    }
   }
 
   // function dedupeMessages(list) {
@@ -361,11 +422,11 @@ export default function ChatLayout({ currentUser, onLogout }) {
         />
 
         <ConversationList
-  conversations={filteredConversations}
-  messages={messages}
-  activeId={activeId}
-  onSelect={selectConversation}
-/>
+          conversations={filteredConversations}
+          messages={messages}
+          activeId={activeId}
+          onSelect={selectConversation}
+        />
 
         <div className="sidebar-footer">
           <button className="logout-button" onClick={onLogout}>
@@ -374,12 +435,12 @@ export default function ChatLayout({ currentUser, onLogout }) {
         </div>
       </aside>
 
-    
+
       {/* ===== Main Chat ===== */}
       <section className="main">
         <ConversationHeader conversation={activeConversation}
           onlineUsers={onlineUsers}
-          currentUserId = {CURRENT_USER_ID} />
+          currentUserId={CURRENT_USER_ID} />
 
         <MessageFeed
           messages={activeMessages}
