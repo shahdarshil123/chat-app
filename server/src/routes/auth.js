@@ -32,10 +32,28 @@ router.post('/login', async (req, res) => {
 
         req.session.userId = user.id;
 
-        // Update status to online
-        await updateUserLastSeen(user.id);
+         req.session.save(async (err) => {
+            if (err) {
+                console.error('Session save error:', err);
+                return res.status(500).json({ error: 'Session save failed' });
+            }
 
-        res.json({ id: user.id, email: user.email, displayName: user.displayName, lastSeen: user.lastSeen });
+            // Update status to online
+            await updateUserLastSeen(user.id);
+
+            // Send response only after session is saved
+            res.json({ 
+                id: user.id, 
+                email: user.email, 
+                displayName: user.displayName, 
+                lastSeen: user.lastSeen 
+            });
+        });
+
+        // Update status to online
+        // await updateUserLastSeen(user.id);
+
+        // res.json({ id: user.id, email: user.email, displayName: user.displayName, lastSeen: user.lastSeen });
 
     }
     catch (error) {

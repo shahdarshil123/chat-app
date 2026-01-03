@@ -1,54 +1,100 @@
-#  Real-Time Chat Messaging Application
+# Real-Time Chat Messaging Application
 
-A full-stack, real-time chat messaging application built to support **one-to-one conversations**, **real-time message delivery**, **message persistence**, and **scalable WebSocket communication** using modern backend and frontend technologies.
-
----
-
-##  Features
-
-- 🔹 One-to-one private conversations
-- 🔹 Real-time message delivery using WebSockets
-- 🔹 Message persistence with relational storage
-- 🔹 Containerized development environment
+A full-stack, real-time chat application designed with **reliability, offline support, and scalability** in mind.  
+This document includes a **navigable table of contents** for easier understanding of the architecture and implementation.
 
 ---
 
-##  Core Concepts
+## 📚 Table of Contents
 
-### 1️⃣ Users
-Each user has:
-- Unique user ID
-- Profile metadata
-- Authentication credentials
+1. [Overview](#overview)  
+2. [Features](#features)  
+3. [Architecture Overview](#architecture-overview)  
+4. [Core Domain Concepts](#core-domain-concepts)  
+   - [Users](#users)  
+   - [Conversations](#conversations)  
+   - [Messages](#messages)  
+5. [Message Flow](#message-flow)  
+6. [Redis Integration](#redis-integration)  
+   - [Session Management](#session-management)  
+   - [Online User Tracking](#online-user-tracking)  
+7. [Offline Messaging with IndexedDB](#offline-messaging-with-indexeddb)  
+8. [Message Ordering & Reliability](#message-ordering--reliability)  
+9. [Reconnection & Recovery](#reconnection--recovery)  
+10. [Technology Stack](#technology-stack)  
+11. [Docker & Development Workflow](#docker--development-workflow)  
+12. [Core Docker Compose Commands](#core-docker-compose-commands)
+---
 
-Users can participate in multiple conversations.
+## Overview
+
+This chat system supports **one-to-one conversations**, **real-time updates**, **offline-first messaging**, and **session persistence across server restarts**.  
+
 
 ---
 
-### 2️⃣ Conversations
-A conversation represents a **logical chat thread** between two users.
+## Features
 
-Each conversation stores:
-- Participant user IDs
-- Creation timestamp
-- Last message metadata
-
-This enables:
-- Fast conversation listing
-- Efficient unread count calculation
-- Message grouping
+- One-to-one private conversations  
+- Real-time message delivery via Socket.IO  
+- PostgreSQL-backed message persistence  
+- Redis-backed session management  
+- Online/offline user presence tracking  
+- IndexedDB-based offline message outbox  
+- Guaranteed message ordering  
+- Optimistic UI updates  
 
 ---
 
-### 3️⃣ Messages
-Each message is:
-- Belongs to a conversation
-- Sent by a user
-- Stored permanently in the database
-- Delivered in real-time via WebSocket
+## Architecture Overview
 
-#### Message Fields
-```text
+```
+Client (React)
+  ├─ IndexedDB (offline outbox)
+  ├─ Optimistic UI state
+  └─ Socket.IO client
+
+Server (Node.js / Express)
+  ├─ REST APIs
+  ├─ Socket.IO server
+  ├─ Redis (sessions + presence)
+  └─ PostgreSQL (messages)
+
+Redis
+  ├─ Session storage
+  └─ Online user tracking
+```
+
+---
+
+## Core Domain Concepts
+
+### Users
+
+- Identified by unique user IDs  
+- Authentication handled via Express sessions  
+- Sessions stored in Redis for durability  
+- Supports multiple sockets per user  
+
+---
+
+### Conversations
+
+A conversation represents a logical chat thread between two users.
+
+Stored metadata:
+- Participant user IDs  
+- Creation timestamp  
+- Last message preview  
+
+---
+
+### Messages
+
+Messages are immutable records stored in PostgreSQL.
+
+Fields:
+```
 id
 conversation_id
 sender_id
@@ -56,134 +102,118 @@ content
 created_at
 ```
 
-## Message Flow
-
-The chat system follows a **persist-first, real-time-second** design to ensure reliability, ordering, and fault tolerance.
-
----
-
-### 1️⃣ Sending a Message (Client)
-
-- User types a message and clicks **Send**
-- The client emits a WebSocket event to the server
-
-```js
-socket.emit("message:send", {
-  conversationId,
-  content
-});
-```
-
----
-
-### 2️⃣ Message Processing (Server)
-
-When the server receives the message:
-
-1. Validates the sender
-2. Verifies the conversation exists and the user is a participant
-3. Persists the message in the database
-4. Emits the message to other participants in the conversation
-
 The database is the **single source of truth**.
 
 ---
 
-### 3️⃣ Real-Time Delivery
+## Message Flow
 
-- If the recipient is connected, the message is delivered instantly via WebSocket
-- If the recipient is offline, the message remains stored in the database
-
-This guarantees **no message loss**.
-
----
-
-### 4️⃣ Client Update
-
-- Sender sees the message immediately
-- Receiver updates the UI in real time
-- Messages are ordered using `created_at` timestamps
+1. User sends a message (optimistic UI update)  
+2. Message is persisted to PostgreSQL  
+3. Server checks Redis for recipient sockets  
+4. Message delivered via Socket.IO if online  
+5. Message recovered via HTTP if offline  
 
 ---
 
-### 5️⃣ Synchronization & Recovery
+## Redis Integration
 
-On refresh or reconnect:
+Redis acts as an **in-memory coordination layer**, not a primary datastore.
 
-1. Client fetches conversation list via REST API
-2. Client fetches message history for the active conversation
-3. WebSocket connection resumes for live updates
+### Session Management
 
-This ensures:
-- Correct ordering
-- Consistent UI state
-- Reliable recovery from network issues
+- Sessions stored using `connect-redis`
+- Session cookie maps to Redis key `sess:<sessionId>`
+- Sessions survive server restarts
+
+### Online User Tracking
+
+Redis key design:
+```
+online:user:{userId} → Set(socketIds)
+```
+
+- Socket connect → add socketId  
+- Socket disconnect → remove socketId  
+- Empty set → user offline  
 
 ---
 
-##  Tech Stack
+## Offline Messaging with IndexedDB
 
-The application is built using a modern, production-ready stack.
+IndexedDB is used as a **client-side outbox**.
+
+Schema:
+```
+outbox:
+  - id
+  - conversationId
+  - content
+  - createdAt
+```
+
+Behavior:
+- Failed send → stored locally  
+- UI shows pending state  
+- Messages flushed in order on reconnect  
 
 ---
+
+## Message Ordering & Reliability
+
+- All message sends go through a serialized send queue  
+- Prevents race conditions and reordering  
+- Offline messages are replayed before new messages  
+
+---
+
+## Reconnection & Recovery
+
+On reconnect:
+1. Socket reconnects  
+2. Offline outbox is flushed  
+3. Active conversation messages are reloaded via HTTP  
+4. UI state is rehydrated  
+
+Sockets deliver **real-time deltas**; HTTP restores **truth**.
+
+---
+
+## Technology Stack
 
 ### Frontend
-- React
-- Component-based UI architecture
-- WebSocket client for real-time updates
-
----
+- React (Vite)
+- IndexedDB
+- Socket.IO client
 
 ### Backend
 - Node.js
-- REST APIs for conversations and messages
-- WebSocket server for real-time messaging
-
----
-
-### Real-Time Communication
+- Express
 - Socket.IO
-- Event-driven messaging
-- Handles reconnections and message broadcasting
 
----
-
-### Database
+### Data Layer
 - PostgreSQL
-- Stores users, conversations, messages
-- Ensures durability and consistency
+- Prisma ORM
+- Redis
 
 ---
 
-### ORM
-- Prisma
-- Type-safe database access
-- Schema migrations and query abstraction
+## Docker & Development Workflow
 
----
+Services:
+- `client` – React frontend  
+- `server` – API + Socket.IO  
+- `db` – PostgreSQL  
+- `redis` – Sessions & presence  
 
-### Containerization & DevOps
-- Docker
-- Docker Compose
-- Local and production parity
-
----
-
-## Design Principles
-
-- Database-first messaging
-- Real-time delivery as an optimization
-- Stateless backend services
-- Scalable and fault-tolerant architecture
-
-##  Services Overview
-
-| Service | Description |
-|------|------------|
-| `client` | Frontend application (Vite / React) |
-| `server` | Backend API + Socket.IO + Prisma |
-| `db` | PostgreSQL database |
-| `migrate` | One-time Prisma migration runner |
+Common commands:
+```bash
+docker compose up --build
+docker compose exec server npx prisma migrate deploy
+docker compose exec server npx prisma db seed
+docker compose exec server npx prisma studio --port 5555
+docker compose down -v
+```
 
 ---
 
@@ -292,10 +322,3 @@ bash scripts/reset-db.sh
 ```bash
 bash scripts/reset-db.sh
 ```
-
-
-
-
-
-
-
