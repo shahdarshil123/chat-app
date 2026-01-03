@@ -1,8 +1,11 @@
 // single Redis connection for entire app
 import Redis from "ioredis";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const redis = new Redis({
-  host: "127.0.0.1",
+  host: process.env.REDIS_HOST || "chat_redis",
   port: 6379,
 });
 
