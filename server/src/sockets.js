@@ -13,6 +13,11 @@ export async function getUserSocketIds(userId){
     
 }
 
+export async function isUserOnline(userId){
+  const sockets = await getUserSocketIds(userId);
+  return sockets.length > 0;
+}
+
 export function registerSockets(server) {
   io = new Server(server, {
     cors: {
