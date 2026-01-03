@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import ConversationList from "./ConversationList";
 import ConversationHeader from "./ConversationHeader";
 import MessageFeed from "./MessageFeed";
@@ -19,6 +19,8 @@ import { addToOutbox, getOutboxMessages, removeFromOutbox } from "../db/outbox";
 ================================ */
 export default function ChatLayout({ currentUser, onLogout }) {
 
+  const flushingRef = useRef(false);
+
   const CURRENT_USER_ID = currentUser.id;
 
   const [conversations, setConversations] = useState([]);
@@ -35,9 +37,9 @@ export default function ChatLayout({ currentUser, onLogout }) {
     [CURRENT_USER_ID]
   );
 
-  useEffect(() => {
-  flushOutbox();
-}, []);
+//   useEffect(() => {
+//   flushOutbox();
+// }, []);
 
   const handleMessage = (msg) => {
     // ❌ Ignore messages sent by myself
@@ -81,18 +83,27 @@ export default function ChatLayout({ currentUser, onLogout }) {
     );
   }
 
-  async function flushOutbox() {
-  const queued = await getOutboxMessages();
-  console.log("🧪 FLUSHING:", queued);
+ async function flushOutbox() {
+  if (flushingRef.current) return; // 🔒 guard
+  flushingRef.current = true;
 
-  for (const msg of queued) {
-    try {
-      const res = await sendMessagePayload({conversationId: msg.conversationId, content: msg.content});
-      console.log("🧪 SENT STATUS:", res.status);
-      await removeFromOutbox(msg.id);
-    } catch (err) {
-      console.error("❌ Flush failed:", err);
+  try {
+    const queued = await getOutboxMessages();
+    console.log("🧪 FLUSHING:", queued);
+
+    for (const msg of queued) {
+      const res = await sendMessagePayload({
+        conversationId: msg.conversationId,
+        content: msg.content,
+        //clientId: msg.id, // IMPORTANT (see Fix 2)
+      });
+
+      if (res.ok) {
+        await removeFromOutbox(msg.id);
+      }
     }
+  } finally {
+    flushingRef.current = false;
   }
 }
 
@@ -109,7 +120,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
     socket.on("message:new", handleMessage);
 
     socket.on("connect", flushOutbox);
-    window.addEventListener("online", flushOutbox);
+    // window.addEventListener("online", flushOutbox);
 
     return () => {
       socket.off("users:online", handleOnline);
