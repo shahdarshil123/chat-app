@@ -20,6 +20,7 @@ import { addToOutbox, getOutboxMessages, removeFromOutbox } from "../db/outbox";
 export default function ChatLayout({ currentUser, onLogout }) {
 
   const flushingRef = useRef(false);
+  const sendingRef = useRef(Promise.resolve());
 
   const CURRENT_USER_ID = currentUser.id;
 
@@ -37,9 +38,9 @@ export default function ChatLayout({ currentUser, onLogout }) {
     [CURRENT_USER_ID]
   );
 
-//   useEffect(() => {
-//   flushOutbox();
-// }, []);
+  //   useEffect(() => {
+  //   flushOutbox();
+  // }, []);
 
   const handleMessage = (msg) => {
     // ❌ Ignore messages sent by myself
@@ -77,35 +78,46 @@ export default function ChatLayout({ currentUser, onLogout }) {
               hour: "2-digit",
               minute: "2-digit",
             }),
+            unread:
+              c.id === activeId ? 0 : (c.unread || 0) + 1,
           }
           : c
       )
     );
   }
 
- async function flushOutbox() {
-  if (flushingRef.current) return; // 🔒 guard
+  async function flushOutbox() {
+  if (flushingRef.current) return;
   flushingRef.current = true;
 
   try {
-    const queued = await getOutboxMessages();
-    console.log("🧪 FLUSHING:", queued);
+    const queued = (await getOutboxMessages())
+      .sort((a, b) => a.createdAt - b.createdAt);
 
     for (const msg of queued) {
-      const res = await sendMessagePayload({
-        conversationId: msg.conversationId,
-        content: msg.content,
-        //clientId: msg.id, // IMPORTANT (see Fix 2)
-      });
+      await enqueueSend(async () => {
+        const res = await sendMessagePayload({
+          conversationId: msg.conversationId,
+          content: msg.content,
+        });
 
-      if (res.ok) {
-        await removeFromOutbox(msg.id);
-      }
+        if (res.ok) {
+          await removeFromOutbox(msg.id);
+
+          setMessages(prev => ({
+            ...prev,
+            [msg.conversationId]: prev[msg.conversationId].map(m =>
+              m.id === msg.id ? { ...m, status: "sent" } : m
+            ),
+          }));
+        }
+      });
     }
   } finally {
     flushingRef.current = false;
   }
 }
+
 
   const handleOnline = (users) => {
     console.log("users:online received:", users);
@@ -113,22 +125,24 @@ export default function ChatLayout({ currentUser, onLogout }) {
   }
 
   useEffect(() => {
-    if (!CURRENT_USER_ID) return;
+    if (!socket) return;
+
+    const onConnect = () => {
+      console.log("Socket reconnected → flushing outbox");
+      flushOutbox();
+    }
 
     socket.on("users:online", handleOnline);
 
     socket.on("message:new", handleMessage);
 
-    socket.on("connect", flushOutbox);
+    socket.on("connect", onConnect);
     // window.addEventListener("online", flushOutbox);
 
     return () => {
       socket.off("users:online", handleOnline);
       socket.off("message:new", handleMessage);
-      socket.off("connect", ()=>{
-        console.log("Socket reconnected → flushing outbox");
-        flushOutbox();
-    });
+      socket.off("connect", onConnect);
     }
 
   }, [socket]);
@@ -335,75 +349,125 @@ export default function ChatLayout({ currentUser, onLogout }) {
   }
 
   async function sendMessagePayload({ conversationId, content }) {
-  console.log("➡️ Sending to server:", {
-    conversationId,
-    content,
+    console.log("➡️ Sending to server:", {
+      conversationId,
+      content,
+    });
+
+    const res = await fetch(
+      `http://localhost:4000/api/message/${conversationId}/messages`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId, content }),
+      }
+    );
+
+    console.log("⬅️ Server response status:", res.status);
+
+    return res;
+  }
+
+  function enqueueSend(task) {
+  sendingRef.current = sendingRef.current
+    .then(task)
+    .catch(() => {}); // prevent chain break
+
+  return sendingRef.current;
+  }
+
+async function sendMessage(text) {
+  if (!text.trim() || !activeId) return;
+
+  // ---------- 1️⃣ Create optimistic message ----------
+  const now = Date.now();
+  const time = new Date(now).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
   });
 
-  const res = await fetch(
-    `http://localhost:4000/api/message/${conversationId}/messages`,
-    {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ conversationId, content }),
-    }
+  const tempMessage = {
+    id: crypto.randomUUID(),
+    conversationId: activeId,
+    text,
+    createdAt: now,
+    time,               // ✅ ALWAYS present
+    fromSelf: true,
+    status: "pending",  // pending | sent
+  };
+
+  // ---------- 2️⃣ Optimistic chat update ----------
+  setMessages(prev => ({
+    ...prev,
+    [activeId]: [...(prev[activeId] || []), tempMessage],
+  }));
+
+  // ---------- 3️⃣ Optimistic SIDEBAR update ----------
+  setConversations(prev =>
+    prev.map(c =>
+      c.id === activeId
+        ? {
+            ...c,
+            lastMessage: text,
+            lastTime: time,
+            unread: 0,
+          }
+        : c
+    )
   );
 
-  console.log("⬅️ Server response status:", res.status);
+  // ---------- 4️⃣ Store ONCE in IndexedDB ----------
+  await addToOutbox({
+    id: tempMessage.id,
+    conversationId: activeId,
+    content: text,
+    createdAt: now,
+  });
 
-  return res;
-}
+  try {
+    // ---------- 5️⃣ Try sending to server ----------
+    await enqueueSend(async ()=>{
+      const res = await sendMessagePayload({
+      conversationId: activeId,
+      content: text,
+    });
+    });
+    
+    if (!res.ok) throw new Error("Send failed");
 
-  async function sendMessage(text) {
-    try {
+    const saved = await res.json();
 
-      if (!text.trim() || !activeId) return;
-
-      const res = await sendMessagePayload({conversationId:activeId, content: text});
-
-      const saved = await res.json();
-      const createdAt = saved.createdAt ?? new Date().toISOString();
-
-      const mapped = {
-        id: saved.id,
-        fromSelf: true,
-        text,
-        createdAt,
-        time: new Date(createdAt).toLocaleTimeString([], {
+    const serverTime = saved.createdAt
+      ? new Date(saved.createdAt).toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
-        }),
-      };
+        })
+      : time;
 
-      // ✅ Append message (DO NOT replace, DO NOT dedupe)
-      setMessages(prev => ({
-        ...prev,
-        [activeId]: [...(prev[activeId] || []), mapped],
-      }));
+    // ---------- 6️⃣ Update SAME message → sent ----------
+    setMessages(prev => ({
+      ...prev,
+      [activeId]: prev[activeId].map(m =>
+        m.id === tempMessage.id
+          ? { ...m, status: "sent", time: serverTime }
+          : m
+      ),
+    }));
 
-      // ✅ Update sidebar preview for this conversation
-      setConversations(prev =>
-        prev.map(c =>
-          c.id === activeId
-            ? {
-              ...c,
-              lastMessage: mapped.text,
-              lastTime: mapped.time,
-            }
-            : c
-        )
-      );
-    }
-    catch {
-      await addToOutbox({
-        id: crypto.randomUUID(),
-        conversationId: activeId,
-        content: text,
-        createdAt: Date.now(),
-      });
-    }
+    // ---------- 7️⃣ Remove from IndexedDB ----------
+    await removeFromOutbox(tempMessage.id);
+  } catch {
+    // ❌ DO NOTHING
+    // Message remains:
+    // - visible in UI
+    // - status = pending
+    // - stored in IndexedDB
+    // - will be sent by flushOutbox()
   }
+}
+
+
 
   // function dedupeMessages(list) {
   //   const unique = Array.from(new Map(list.map(m => [m.id, m])).values());
