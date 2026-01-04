@@ -112,3 +112,15 @@ export async function updateLastConversationReadAt(userId, conversationId) {
     });
 }
 
+export async function getConversationMembers(conversationId) {
+    return await prisma.conversation.findUnique({
+        where: { id: Number(conversationId) },
+        include: {
+            members: {
+                select: { userId: true },
+            },
+        },
+    });
+}
+
+

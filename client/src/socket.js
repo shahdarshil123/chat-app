@@ -13,6 +13,9 @@ export function connectSocket() {
     withCredentials: true,      // 🔑 send session cookie
     transports: ["websocket"],
     autoConnect: true,
+    // reconnection: true,
+    // reconnectionAttempts: Infinity,
+    // reconnectionDelay: 500,
   });
 
   socket.on("connect", () => {
