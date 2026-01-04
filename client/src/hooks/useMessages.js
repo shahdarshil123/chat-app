@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { MESSAGE_API_VERSION_ENUM } from "../constants/apiVersions.js";
+import { useState, useMemo } from "react";
+import { createMessageStrategy } from "../strategies/messageStrategy.factory.js";
 
 export function useMessages({
   activeId,
@@ -11,44 +11,41 @@ export function useMessages({
   const [pagination, setPagination] = useState({});
 
   /* ----------------------------------
+     Strategy (runtime selection)
+  ---------------------------------- */
+  const strategy = useMemo(
+    () =>
+      createMessageStrategy({
+        version: apiVersion,
+        fetchMessages,
+      }),
+    [apiVersion, fetchMessages]
+  );
+
+  /* ----------------------------------
      Load initial messages
   ---------------------------------- */
   async function loadInitialMessages(conversationId) {
     if (!conversationId) return;
 
-    // v1 → load all messages
-    if (apiVersion === MESSAGE_API_VERSION_ENUM.V1) {
-      const data = await fetchMessages({
-        conversationId,
-        version: apiVersion,
-      });
-
-      setMessages(prev => ({
-        ...prev,
-        [conversationId]: data.messages.map(mapMessage),
-      }));
-
-      return;
-    }
-
-    // v2 → paginated (latest messages)
-    const data = await fetchMessages({
+    const result = await strategy.fetchInitial({
       conversationId,
-      limit: 20,
-      version: apiVersion,
     });
 
     setMessages(prev => ({
       ...prev,
-      [conversationId]: data.messages.map(mapMessage),
+      [conversationId]: result.messages.map(mapMessage),
     }));
 
-    // ✅ always reset pagination state for this conversation
+    // v1 → no pagination state
+    if (result.oldestCursor === undefined) return;
+
+    // v2+ → reset pagination
     setPagination(prev => ({
       ...prev,
       [conversationId]: {
-        hasMore: data.hasMore,
-        oldestCursor: data.messages[0]?.createdAt ?? null,
+        hasMore: result.hasMore,
+        oldestCursor: result.oldestCursor,
         loading: false,
       },
     }));
@@ -58,8 +55,6 @@ export function useMessages({
      Load older messages (pagination)
   ---------------------------------- */
   async function loadOlderMessages() {
-    if (apiVersion === MESSAGE_API_VERSION_ENUM.V1) return;
-
     const page = pagination[activeId];
     if (!page || !page.hasMore || page.loading) return;
 
@@ -68,14 +63,12 @@ export function useMessages({
       [activeId]: { ...prev[activeId], loading: true },
     }));
 
-    const data = await fetchMessages({
+    const result = await strategy.fetchOlder({
       conversationId: activeId,
-      limit: 20,
-      before: page.oldestCursor,
-      version: apiVersion,
+      cursor: page.oldestCursor,
     });
 
-    if (!data.messages.length) {
+    if (!result.messages.length) {
       setPagination(prev => ({
         ...prev,
         [activeId]: {
@@ -90,7 +83,7 @@ export function useMessages({
     setMessages(prev => ({
       ...prev,
       [activeId]: [
-        ...data.messages.map(mapMessage),
+        ...result.messages.map(mapMessage),
         ...(prev[activeId] || []),
       ],
     }));
@@ -98,8 +91,8 @@ export function useMessages({
     setPagination(prev => ({
       ...prev,
       [activeId]: {
-        hasMore: data.hasMore,
-        oldestCursor: data.messages[0]?.createdAt ?? null,
+        hasMore: result.hasMore,
+        oldestCursor: result.oldestCursor,
         loading: false,
       },
     }));
@@ -114,19 +107,18 @@ export function useMessages({
 
     const last = existing[existing.length - 1];
 
-    const data = await fetchMessages({
+    const result = await strategy.fetchMissed({
       conversationId,
       after: last.createdAt,
-      version: apiVersion,
     });
 
-    if (!data.messages.length) return;
+    if (!result.messages.length) return;
 
     setMessages(prev => ({
       ...prev,
       [conversationId]: [
         ...prev[conversationId],
-        ...data.messages.map(mapMessage),
+        ...result.messages.map(mapMessage),
       ],
     }));
   }
@@ -137,6 +129,6 @@ export function useMessages({
     loadInitialMessages,
     loadOlderMessages,
     fetchMissedMessages,
-    setMessages, // exposed for socket append
+    setMessages, // still exposed for socket usage
   };
 }
