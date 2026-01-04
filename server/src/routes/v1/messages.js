@@ -1,9 +1,9 @@
 import express from 'express';
-import { saveMessage, getMessages } from '../db/messages.js';
-import {getConversationMembers} from "../db/conversations.js";
-import { requireAuth } from '../middleware/requireAuth.js';
-import { io, getUserSocketIds } from '../sockets.js';
-import redis from '../redis/redis.js';
+import { saveMessage, getMessages } from '../../db/messages.js';
+import {getConversationMembers} from "../../db/conversations.js";
+import { requireAuth } from '../../middleware/requireAuth.js';
+import { io, getUserSocketIds } from '../../sockets.js';
+import redis from '../../redis/redis.js';
 
 const router = express.Router();
 

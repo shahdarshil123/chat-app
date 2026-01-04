@@ -1,5 +1,5 @@
 import express from 'express';
-import { createUser, getUserByEmail, verifyPassword, updateUserLastSeen } from '../db/users.js';
+import { createUser, getUserByEmail, verifyPassword, updateUserLastSeen } from '../../db/users.js';
 // import { disconnectUserSockets } from '../sockets.js';
 
 const router = express.Router();

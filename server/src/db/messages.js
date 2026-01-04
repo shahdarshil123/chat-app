@@ -51,3 +51,35 @@ export async function getMessages(conversationId) {
 
     return messages;
 }
+
+export async function getMessagesV2({
+  conversationId: conversationId,
+  limit,
+  before,
+}) {
+  // 🛑 HARD GUARD — prevents full-table scan
+  if (!conversationId || Number.isNaN(conversationId)) {
+    // throw new Error("Invalid conversationId passed to getMessagesV2");
+    return;
+  }
+
+  const messages = await prisma.message.findMany({
+    where: {
+      conversationId: Number(conversationId), // ✅ MUST be explicit
+      ...(before
+        ? {
+            createdAt: {
+              lt: new Date(before),
+            },
+          }
+        : {}),
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    take: limit,
+  });
+
+  // Prisma returns newest → oldest, UI needs oldest → newest
+  return messages.reverse();
+}

@@ -1,6 +1,6 @@
 import express from 'express';
-import { getUserConversations, getOrCreateDirectConversation, updateLastConversationReadAt } from "../db/conversations.js";
-import { requireAuth } from '../middleware/requireAuth.js';
+import { getUserConversations, getOrCreateDirectConversation, updateLastConversationReadAt } from "../../db/conversations.js";
+import { requireAuth } from '../../middleware/requireAuth.js';
 const router = express.Router();
 
 router.get("/:userId", requireAuth, async (req, res) => {

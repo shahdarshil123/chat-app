@@ -1,6 +1,6 @@
 import express from 'express';
-import { checkUserExistsByEmail, checkUserExistsByUsername, createUser, getUserById, updateUserLastSeen, getLastSeen} from '../db/users.js';
-import { requireAuth } from '../middleware/requireAuth.js';
+import { checkUserExistsByEmail, checkUserExistsByUsername, createUser, getUserById, updateUserLastSeen, getLastSeen} from '../../db/users.js';
+import { requireAuth } from '../../middleware/requireAuth.js';
 
 const router = express.Router();
 
