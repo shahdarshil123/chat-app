@@ -1,75 +1,116 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 
-export default function MessageFeed({ messages = [], unreadStartId, activeId, onLoadOlder}) {
+export default function MessageFeed({
+  messages = [],
+  unreadStartId,
+  activeId,
+  onLoadOlder,
+}) {
   const containerRef = useRef(null);
   const bottomRef = useRef(null);
 
-  // Track previous conversation + messages reference
+  // Track previous conversation
   const prevConversationRef = useRef(null);
-  const prevMessagesRef = useRef(null);
 
-  const isConversationChanged =
-    prevConversationRef.current !== activeId;
+  // Track message count (append vs prepend)
+  const prevMessageCountRef = useRef(0);
 
-  const isMessageDatasetReplaced =
-    prevMessagesRef.current !== messages;
+  // Track if we scrolled after THIS activation
+  const didInitialScrollRef = useRef(false);
 
-  // 1️⃣ Detect conversation switch OR message dataset replacement
-  const shouldForceScroll =
-    isConversationChanged || isMessageDatasetReplaced;
+  /* =====================================================
+     1️⃣ Reset initial-scroll flag when conversation changes
+     ===================================================== */
+  useEffect(() => {
+    if (prevConversationRef.current !== activeId) {
+      didInitialScrollRef.current = false;
+      prevConversationRef.current = activeId;
+      prevMessageCountRef.current = 0;
+    }
+  }, [activeId]);
 
-  // 2️⃣ After render, force scroll once
+  /* =====================================================
+     2️⃣ Scroll to bottom when messages first appear
+     ===================================================== */
   useLayoutEffect(() => {
     if (!activeId) return;
-    if (!shouldForceScroll) return;
+    if (!messages.length) return;
+    if (didInitialScrollRef.current) return;
 
     requestAnimationFrame(() => {
       bottomRef.current?.scrollIntoView({ behavior: "auto" });
     });
 
-    prevConversationRef.current = activeId;
-    prevMessagesRef.current = messages;
-  }, [activeId, messages, shouldForceScroll]);
+    didInitialScrollRef.current = true;
+    prevMessageCountRef.current = messages.length;
+  }, [activeId, messages]);
 
-  // 3️⃣ Smart auto-scroll for new messages (same conversation)
+  /* =====================================================
+     3️⃣ Auto-scroll ONLY when messages are appended
+     ===================================================== */
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const isNearBottom =
-      container.scrollHeight -
-        container.scrollTop -
-        container.clientHeight < 80;
+    const prevCount = prevMessageCountRef.current;
+    const currCount = messages.length;
 
-    if (isNearBottom) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const appended = currCount > prevCount;
+
+    if (appended) {
+      const isNearBottom =
+        container.scrollHeight -
+          container.scrollTop -
+          container.clientHeight < 80;
+
+      if (isNearBottom) {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+      }
     }
+
+    prevMessageCountRef.current = currCount;
   }, [messages]);
 
-function handleScroll(e) {
-    const el = e.target;
-
-    if (el.scrollTop === 0) {
+  /* =====================================================
+     4️⃣ Scroll-up pagination trigger
+     ===================================================== */
+  function handleScroll(e) {
+    if (e.target.scrollTop === 0) {
       onLoadOlder?.();
     }
   }
-  
+
+  /* =====================================================
+     5️⃣ Render
+     ===================================================== */
   return (
-    <div className="messages" ref={containerRef} onScroll={handleScroll}>
+    <div
+      className="messages"
+      ref={containerRef}
+      onScroll={handleScroll}
+    >
       {messages.map(m => (
         <div key={m.id}>
           {unreadStartId === m.id && (
-            <div className="unread-divider">Unread messages</div>
+            <div className="unread-divider">
+              Unread messages
+            </div>
           )}
 
-          <div className={`message-row ${m.fromSelf ? "self" : "other"}`}>
+          <div
+            className={`message-row ${
+              m.fromSelf ? "self" : "other"
+            }`}
+          >
             <div className="message">
               <span>{m.text}</span>
 
               <div className="message-meta">
                 <span className="time">{m.time}</span>
                 {m.fromSelf && (
-                  <span className={`ticks ${m.status ?? "sent"}`}>✓✓</span>
+                  <span className={`ticks ${m.status ?? "sent"}`}>
+                    ✓✓
+                  </span>
                 )}
               </div>
             </div>
