@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 
-export default function MessageFeed({ messages = [], unreadStartId, activeId }) {
+export default function MessageFeed({ messages = [], unreadStartId, activeId, onLoadOlder}) {
   const containerRef = useRef(null);
   const bottomRef = useRef(null);
 
@@ -16,7 +16,7 @@ export default function MessageFeed({ messages = [], unreadStartId, activeId }) 
 
   // 1️⃣ Detect conversation switch OR message dataset replacement
   const shouldForceScroll =
-    isConversationChanged || isMessageDatasetReplaced;;
+    isConversationChanged || isMessageDatasetReplaced;
 
   // 2️⃣ After render, force scroll once
   useLayoutEffect(() => {

@@ -149,7 +149,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
       console.log("Socket reconnected → flushing outbox");
       flushOutbox();
 
-    loadMessages();
+    //loadMessages();
 
     }
 
@@ -272,6 +272,7 @@ async function loadOlderMessages() {
     [activeId]: { ...prev[activeId], loading: true },
   }));
 
+  console.log(`Next Page: messages fetching...`);
   const data = await fetchMessages({
     conversationId: activeId,
     limit: 20,
