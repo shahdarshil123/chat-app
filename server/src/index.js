@@ -8,6 +8,9 @@ import { registerSockets } from "./sockets.js";
 import connectRedis from "connect-redis";
 import redis from "./redis/redis.js";
 
+import { MESSAGE_API_VERSION_ENUM, AUTH_API_VERSION_ENUM, CONVERSATION_API_VERSION_ENUM, USER_API_VERSION_ENUM} from "./constants/apiVersions.js";
+import {DEFAULT_MESSAGE_API_VERSION} from "./config.js";
+
 //Import Routes
 import userRoutesV1 from "./routes/v1/users.js";
 import messageRoutesV1 from "./routes//v1/messages.js";
@@ -15,6 +18,8 @@ import conversationRoutesV1 from "./routes//v1/conversations.js";
 import authRoutesV1 from "./routes//v1/auth.js";
 
 import messageRoutesV2 from "./routes/v2/messages.js";
+
+
 
 dotenv.config();
 
@@ -53,13 +58,13 @@ app.use(sessionMiddleware);
 
 // API routes
 //v1
-app.use('/api/v1/user', userRoutesV1);
-app.use('/api/v1/message', messageRoutesV1);
-app.use('/api/v1/conversation', conversationRoutesV1);
-app.use('/api/v1/auth', authRoutesV1);
+app.use(`/api/${USER_API_VERSION_ENUM.V1}/user`, userRoutesV1);
+app.use(`/api/${MESSAGE_API_VERSION_ENUM.V1}/message`, messageRoutesV1);
+app.use(`/api/${CONVERSATION_API_VERSION_ENUM.V1}/conversation`, conversationRoutesV1);
+app.use(`/api/${AUTH_API_VERSION_ENUM.V1}/auth`, authRoutesV1);
 
 //v2
-app.use('/api/v2/message', messageRoutesV2);
+app.use(`/api/${MESSAGE_API_VERSION_ENUM.V2}/message`, messageRoutesV2);
 const server = http.createServer(app);
 
 

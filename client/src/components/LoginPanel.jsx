@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { AUTH_API_VERSION_ENUM } from "../constants/apiVersions";
+import { AUTH_API_VERSION } from "../config";
 
 export default function LoginPanel({ onLogin }) {
   
@@ -13,7 +15,7 @@ export default function LoginPanel({ onLogin }) {
     setError("");
 
     try {
-      const res = await fetch("http://localhost:4000/api/auth/login", {
+      const res = await fetch(`http://localhost:4000/api/${AUTH_API_VERSION}/auth/login`, {
         method: "POST",
         credentials: "include",
         headers: {

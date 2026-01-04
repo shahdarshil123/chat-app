@@ -8,13 +8,8 @@ import { fetchMessages } from "../api/messages";
 import { connectSocket} from "../socket";
 import { addToOutbox, getOutboxMessages, removeFromOutbox } from "../db/outbox.js";
 
-import { MESSAGE_API_VERSION_ENUM } from "../constants/apiVersions.js";
-import { MESSAGE_API_VERSION } from "../config.js";
-
-/* ================================
-   Temporary Logged-in User
-================================ */
-// const CURRENT_USER_ID = 2;
+import { MESSAGE_API_VERSION_ENUM, AUTH_API_VERSION_ENUM, USER_API_VERSION_ENUM, CONVERSATION_API_VERSION_ENUM } from "../constants/apiVersions.js";
+import { MESSAGE_API_VERSION, CONVERSATION_API_VERSION, AUTH_API_VERSION, USER_API_VERSION } from "../config.js";
 
 /* ================================
    Chat Layout
@@ -205,7 +200,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
   useEffect(() => {
     async function loadConversations() {
       const res = await fetch(
-        `http://localhost:4000/api/conversation/${CURRENT_USER_ID}`, { credentials: "include" }
+        `http://localhost:4000/api/${CONVERSATION_API_VERSION}/conversation/${CURRENT_USER_ID}`, { credentials: "include" }
       );
       const json = await res.json();
       console.log(json);
@@ -266,7 +261,7 @@ async function loadInitialMessages(conversationId){
   if(MESSAGE_API_VERSION === MESSAGE_API_VERSION_ENUM.V1){
      // 🔹 V1: load ALL messages at once
     const res = await fetch(
-      `http://localhost:4000/api/v1/message/${conversationId}/messages`,
+      `http://localhost:4000/api/${MESSAGE_API_VERSION}/message/${conversationId}/messages`,
       { credentials: "include" }
     );
 
@@ -358,41 +353,6 @@ async function loadOlderMessages() {
 }
 
 
-  // async function loadMessages() {
-  //     const res = await fetch(
-  //       `http://localhost:4000/api/message/${activeId}/messages`, { credentials: "include" }
-  //     );
-  //     const json = await res.json();
-
-  //     const mapped = json.messages.map(m => ({
-  //       id: m.id,
-  //       fromSelf: m.senderId === CURRENT_USER_ID,
-  //       text: m.content,
-  //       time: new Date(m.createdAt).toLocaleTimeString([], {
-  //         hour: "2-digit",
-  //         minute: "2-digit",
-  //       }),
-  //       status: m.senderId === CURRENT_USER_ID ? "delivered" : undefined,
-  //       createdAt: m.createdAt,
-  //       sender: {
-  //         id: m.sender.id,
-  //         name: m.sender.displayName,
-  //         avatar: m.sender.avatarUrl,
-  //       },
-  //     }));
-
-  //     // 🔑 REPLACE messages for this conversation
-  //     setMessages(prev => ({
-  //       ...prev,
-  //       [activeId]: mapped,
-  //     }));
-  //   }
-
-  // useEffect(() => {
-  //   if (!activeId) return;
-  //   loadMessages();
-  // }, [activeId]);
-
   useEffect(() => {
     if (!activeId) return;
 
@@ -409,7 +369,7 @@ async function loadOlderMessages() {
       );
 
       await fetch(
-        `http://localhost:4000/api/conversation/${activeId}/read`,
+        `http://localhost:4000/api/${CONVERSATION_API_VERSION}/conversation/${activeId}/read`,
         { method: "POST", credentials: "include" }
       );
     }, 300); // small delay ensures render completed
@@ -427,7 +387,7 @@ async function loadOlderMessages() {
     }
 
     await fetch(
-      `http://localhost:4000/api/conversation/${id}/read`,
+      `http://localhost:4000/api/${CONVERSATION_API_VERSION}/conversation/${id}/read`,
       { method: "POST", credentials: "include" }
     );
   }
@@ -468,53 +428,6 @@ async function loadOlderMessages() {
   }, [activeId, activeMessages, unreadBoundary]);
 
 
-  /* ================================
-     Actions
-  ================================ */
-  // async function selectConversation(id) {
-  //   setActiveId(id);
-
-  //   const convo = conversations.find(c => c.id === id);
-  //   if (convo?.lastReadAt) {
-  //     setUnreadBoundary(prev => ({
-  //       ...prev,
-  //       [id]: convo.lastReadAt, // 🔒 freeze boundary
-  //     }));
-  //   }
-
-  //   // Optimistically mark conversation as read in UI
-  //   const now = new Date().toISOString();
-  //   setConversations(prev =>
-  //     prev.map(c =>
-  //       c.id === id
-  //         ? {
-  //           ...c,
-  //           unread: 0,
-  //           // lastReadAt: now,
-  //         }
-  //         : c
-  //     )
-  //   );
-
-  //   const res = await fetch(
-  //     `http://localhost:4000/api/conversation/${activeId}/read`,
-  //     {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" },
-  //       credentials: "include",
-  //       // body: JSON.stringify({
-  //       //   conversationId: activeId,
-  //       //   userId: CURRENT_USER_ID,
-  //       // }),
-  //     }
-  //   );
-
-  //   const message = await res.json();
-
-  //   console.log(message);
-
-  // }
-
   async function sendMessagePayload({ conversationId, content }) {
     console.log("➡️ Sending to server:", {
       conversationId,
@@ -522,7 +435,7 @@ async function loadOlderMessages() {
     });
 
     const res = await fetch(
-      `http://localhost:4000/api/message/${conversationId}/messages`,
+      `http://localhost:4000/api/${MESSAGE_API_VERSION}/message/${conversationId}/messages`,
       {
         method: "POST",
         credentials: "include",
