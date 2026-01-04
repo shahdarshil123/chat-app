@@ -14,7 +14,7 @@ import { MESSAGE_API_VERSION, CONVERSATION_API_VERSION, AUTH_API_VERSION, USER_A
 import {useMessages} from "../hooks/useMessages.js";
 import { useChatSocket } from "../hooks/useChatSocket.js";
 import { useOutbox } from "../hooks/useOutbox.js";
-
+import { useConversations } from "../hooks/useConversations.js";
 
 /* ================================
    Chat Layout
@@ -28,12 +28,12 @@ export default function ChatLayout({ currentUser, onLogout }) {
   const flushingRef = useRef(false);
   const sendingRef = useRef(Promise.resolve());
 
-  const [conversations, setConversations] = useState([]);
+  // const [conversations, setConversations] = useState([]);
   // const [messages, setMessages] = useState({});
   // const [pagination, setPagination] = useState({});
   const [activeId, setActiveId] = useState(null); // Active conversation id
   const [search, setSearch] = useState("");
-  const [unreadBoundary, setUnreadBoundary] = useState({});
+  // const [unreadBoundary, setUnreadBoundary] = useState({});
 
   const [onlineUsers, setOnlineUsers] = useState(new Set());
 
@@ -55,6 +55,17 @@ export default function ChatLayout({ currentUser, onLogout }) {
       status: m.senderId === CURRENT_USER_ID ? "sent" : undefined,
     };
   }
+
+  const {
+  conversations,
+  setConversations,
+  unreadBoundary,
+  setUnreadBoundary,
+  markAsRead,
+} = useConversations({
+  currentUserId: CURRENT_USER_ID,
+  apiVersion: CONVERSATION_API_VERSION,
+});
 
    const {
     messages,
@@ -328,10 +339,7 @@ useChatSocket({
       setUnreadBoundary(prev => ({ ...prev, [id]: convo.lastReadAt }));
     }
 
-    await fetch(
-      `http://localhost:4000/api/${CONVERSATION_API_VERSION}/conversation/${id}/read`,
-      { method: "POST", credentials: "include" }
-    );
+    await markAsRead(id);
   }
 
   /* ================================
