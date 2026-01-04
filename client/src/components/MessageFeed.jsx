@@ -8,10 +8,15 @@ export default function MessageFeed({ messages = [], unreadStartId, activeId }) 
   const prevConversationRef = useRef(null);
   const prevMessagesRef = useRef(null);
 
+  const isConversationChanged =
+    prevConversationRef.current !== activeId;
+
+  const isMessageDatasetReplaced =
+    prevMessagesRef.current !== messages;
+
   // 1️⃣ Detect conversation switch OR message dataset replacement
   const shouldForceScroll =
-    prevConversationRef.current !== activeId ||
-    prevMessagesRef.current !== messages;
+    isConversationChanged || isMessageDatasetReplaced;;
 
   // 2️⃣ After render, force scroll once
   useLayoutEffect(() => {
@@ -24,7 +29,7 @@ export default function MessageFeed({ messages = [], unreadStartId, activeId }) 
 
     prevConversationRef.current = activeId;
     prevMessagesRef.current = messages;
-  });
+  }, [activeId, messages, shouldForceScroll]);
 
   // 3️⃣ Smart auto-scroll for new messages (same conversation)
   useEffect(() => {
@@ -41,12 +46,20 @@ export default function MessageFeed({ messages = [], unreadStartId, activeId }) 
     }
   }, [messages]);
 
+function handleScroll(e) {
+    const el = e.target;
+
+    if (el.scrollTop === 0) {
+      onLoadOlder?.();
+    }
+  }
+  
   return (
-    <div className="messages" ref={containerRef}>
+    <div className="messages" ref={containerRef} onScroll={handleScroll}>
       {messages.map(m => (
         <div key={m.id}>
           {unreadStartId === m.id && (
-            <div className="unread-divider">Unread messages</div>
+            <div className="unread-divider">anUnread messages</div>
           )}
 
           <div className={`message-row ${m.fromSelf ? "self" : "other"}`}>

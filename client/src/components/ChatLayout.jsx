@@ -4,9 +4,10 @@ import ConversationHeader from "./ConversationHeader";
 import MessageFeed from "./MessageFeed";
 import MessageInput from "./MessageInput";
 
-import { connectSocket, disconnectSocket } from "../socket";
-import { preconnect } from "react-dom";
+import { fetchMessages } from "../api/messages";
+import { connectSocket} from "../socket";
 import { addToOutbox, getOutboxMessages, removeFromOutbox } from "../db/outbox";
+
 
 
 /* ================================
@@ -18,18 +19,18 @@ import { addToOutbox, getOutboxMessages, removeFromOutbox } from "../db/outbox";
    Chat Layout
 ================================ */
 export default function ChatLayout({ currentUser, onLogout }) {
+  const CURRENT_USER_ID = currentUser.id;
 
+  const chatContainerRef = useRef(null);
   const flushingRef = useRef(false);
   const sendingRef = useRef(Promise.resolve());
 
-  const CURRENT_USER_ID = currentUser.id;
-
   const [conversations, setConversations] = useState([]);
   const [messages, setMessages] = useState({});
+  const [pagination, setPagination] = useState({});
   const [activeId, setActiveId] = useState(null); // Active conversation id
   const [search, setSearch] = useState("");
   const [unreadBoundary, setUnreadBoundary] = useState({});
-  // const [activeConversation, setActiveConversation]= useState("");
 
   const [onlineUsers, setOnlineUsers] = useState(new Set());
 
@@ -41,6 +42,23 @@ export default function ChatLayout({ currentUser, onLogout }) {
   //   useEffect(() => {
   //   flushOutbox();
   // }, []);
+
+  /* ================================
+     Helpers
+  ================================ */
+  function mapMessage(m) {
+    return {
+      id: m.id,
+      fromSelf: m.senderId === CURRENT_USER_ID,
+      text: m.content,
+      createdAt: m.createdAt,
+      time: new Date(m.createdAt).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      status: m.senderId === CURRENT_USER_ID ? "sent" : undefined,
+    };
+  }
 
   const handleMessage = (msg) => {
     // ❌ Ignore messages sent by myself
@@ -210,40 +228,112 @@ export default function ChatLayout({ currentUser, onLogout }) {
      Load Messages (per conversation)
   ================================ */
 
-  async function loadMessages() {
-      const res = await fetch(
-        `http://localhost:4000/api/message/${activeId}/messages`, { credentials: "include" }
-      );
-      const json = await res.json();
 
-      const mapped = json.messages.map(m => ({
-        id: m.id,
-        fromSelf: m.senderId === CURRENT_USER_ID,
-        text: m.content,
-        time: new Date(m.createdAt).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        status: m.senderId === CURRENT_USER_ID ? "delivered" : undefined,
-        createdAt: m.createdAt,
-        sender: {
-          id: m.sender.id,
-          name: m.sender.displayName,
-          avatar: m.sender.avatarUrl,
-        },
-      }));
+async function loadInitialMessages(conversationId){
+  if(!conversationId) return;
 
-      // 🔑 REPLACE messages for this conversation
-      setMessages(prev => ({
-        ...prev,
-        [activeId]: mapped,
-      }));
-    }
+  setPagination(prev =>({
+    ...prev,
+    [conversationId]: {loading: true},
+  }));
 
-  useEffect(() => {
-    if (!activeId) return;
-    loadMessages();
-  }, [activeId]);
+  const data = await fetchMessages({
+    conversationId,
+    limit: 20,
+    version: "v2",
+  });
+
+  setMessages(prev=>({
+    ...prev,
+    [conversationId]: data.messages.map(mapMessage),
+  }));
+
+  setPagination(prev => ({
+    ...prev,
+    [conversationId]:{
+      hasMore: data.hasMore,
+      oldestCursor: data.oldestCursor,
+      loading: false,
+    },
+  }));
+
+}
+
+
+async function loadOlderMessages() {
+  const page = pagination[activeId];
+  if (!page || !page.hasMore || page.loading) return;
+
+  const container = document.querySelector(".messages");
+  const prevHeight = container.scrollHeight;
+
+  setPagination(prev => ({
+    ...prev,
+    [activeId]: { ...prev[activeId], loading: true },
+  }));
+
+  const data = await fetchMessages({
+    conversationId: activeId,
+    limit: 20,
+    before: page.oldestCursor,
+    version: "v2",
+  });
+
+  setMessages(prev => ({
+    ...prev,
+    [activeId]: [...data.messages.map(mapMessage), ...prev[activeId]],
+  }));
+
+  setPagination(prev => ({
+    ...prev,
+    [activeId]: {
+      hasMore: data.hasMore,
+      oldestCursor: data.oldestCursor,
+      loading: false,
+    },
+  }));
+
+  // 🔑 preserve scroll position
+  requestAnimationFrame(() => {
+    container.scrollTop = container.scrollHeight - prevHeight;
+  });
+}
+
+
+  // async function loadMessages() {
+  //     const res = await fetch(
+  //       `http://localhost:4000/api/message/${activeId}/messages`, { credentials: "include" }
+  //     );
+  //     const json = await res.json();
+
+  //     const mapped = json.messages.map(m => ({
+  //       id: m.id,
+  //       fromSelf: m.senderId === CURRENT_USER_ID,
+  //       text: m.content,
+  //       time: new Date(m.createdAt).toLocaleTimeString([], {
+  //         hour: "2-digit",
+  //         minute: "2-digit",
+  //       }),
+  //       status: m.senderId === CURRENT_USER_ID ? "delivered" : undefined,
+  //       createdAt: m.createdAt,
+  //       sender: {
+  //         id: m.sender.id,
+  //         name: m.sender.displayName,
+  //         avatar: m.sender.avatarUrl,
+  //       },
+  //     }));
+
+  //     // 🔑 REPLACE messages for this conversation
+  //     setMessages(prev => ({
+  //       ...prev,
+  //       [activeId]: mapped,
+  //     }));
+  //   }
+
+  // useEffect(() => {
+  //   if (!activeId) return;
+  //   loadMessages();
+  // }, [activeId]);
 
   useEffect(() => {
     if (!activeId) return;
@@ -269,6 +359,21 @@ export default function ChatLayout({ currentUser, onLogout }) {
     return () => clearTimeout(timeout);
   }, [activeId]);
 
+  async function selectConversation(id) {
+    setActiveId(id);
+    loadInitialMessages(id);
+
+    const convo = conversations.find(c => c.id === id);
+    if (convo?.lastReadAt) {
+      setUnreadBoundary(prev => ({ ...prev, [id]: convo.lastReadAt }));
+    }
+
+    await fetch(
+      `http://localhost:4000/api/conversation/${id}/read`,
+      { method: "POST", credentials: "include" }
+    );
+  }
+
   /* ================================
      Derived State
   ================================ */
@@ -277,6 +382,8 @@ export default function ChatLayout({ currentUser, onLogout }) {
     [conversations, activeId]
   );
 
+  const activeMessages = messages[activeId] || [];
+
   const filteredConversations = useMemo(() => {
     if (!search.trim()) return conversations;
     return conversations.filter(c =>
@@ -284,7 +391,6 @@ export default function ChatLayout({ currentUser, onLogout }) {
     );
   }, [search, conversations]);
 
-  const activeMessages = messages[activeId] || [];
 
   /* ================================
      Unread Divider Logic
@@ -307,49 +413,49 @@ export default function ChatLayout({ currentUser, onLogout }) {
   /* ================================
      Actions
   ================================ */
-  async function selectConversation(id) {
-    setActiveId(id);
+  // async function selectConversation(id) {
+  //   setActiveId(id);
 
-    const convo = conversations.find(c => c.id === id);
-    if (convo?.lastReadAt) {
-      setUnreadBoundary(prev => ({
-        ...prev,
-        [id]: convo.lastReadAt, // 🔒 freeze boundary
-      }));
-    }
+  //   const convo = conversations.find(c => c.id === id);
+  //   if (convo?.lastReadAt) {
+  //     setUnreadBoundary(prev => ({
+  //       ...prev,
+  //       [id]: convo.lastReadAt, // 🔒 freeze boundary
+  //     }));
+  //   }
 
-    // Optimistically mark conversation as read in UI
-    const now = new Date().toISOString();
-    setConversations(prev =>
-      prev.map(c =>
-        c.id === id
-          ? {
-            ...c,
-            unread: 0,
-            // lastReadAt: now,
-          }
-          : c
-      )
-    );
+  //   // Optimistically mark conversation as read in UI
+  //   const now = new Date().toISOString();
+  //   setConversations(prev =>
+  //     prev.map(c =>
+  //       c.id === id
+  //         ? {
+  //           ...c,
+  //           unread: 0,
+  //           // lastReadAt: now,
+  //         }
+  //         : c
+  //     )
+  //   );
 
-    const res = await fetch(
-      `http://localhost:4000/api/conversation/${activeId}/read`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        // body: JSON.stringify({
-        //   conversationId: activeId,
-        //   userId: CURRENT_USER_ID,
-        // }),
-      }
-    );
+  //   const res = await fetch(
+  //     `http://localhost:4000/api/conversation/${activeId}/read`,
+  //     {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       credentials: "include",
+  //       // body: JSON.stringify({
+  //       //   conversationId: activeId,
+  //       //   userId: CURRENT_USER_ID,
+  //       // }),
+  //     }
+  //   );
 
-    const message = await res.json();
+  //   const message = await res.json();
 
-    console.log(message);
+  //   console.log(message);
 
-  }
+  // }
 
   async function sendMessagePayload({ conversationId, content }) {
     console.log("➡️ Sending to server:", {
@@ -524,6 +630,7 @@ if (!res.ok) throw new Error("Send failed");
           messages={activeMessages}
           unreadStartId={unreadStartId}
           activeId={activeId}
+          onLoadOlder ={loadOlderMessages}
         />
 
         <MessageInput onSend={sendMessage} />
