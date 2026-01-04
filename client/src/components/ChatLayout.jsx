@@ -12,6 +12,8 @@ import { MESSAGE_API_VERSION_ENUM, AUTH_API_VERSION_ENUM, USER_API_VERSION_ENUM,
 import { MESSAGE_API_VERSION, CONVERSATION_API_VERSION, AUTH_API_VERSION, USER_API_VERSION } from "../config.js";
 
 import {useMessages} from "../hooks/useMessages.js";
+import { useChatSocket } from "../hooks/useChatSocket.js";
+
 
 
 /* ================================
@@ -101,49 +103,49 @@ export default function ChatLayout({ currentUser, onLogout }) {
 //   }));
 // }
 
-  const handleMessage = (msg) => {
-    // ❌ Ignore messages sent by myself
-    if (msg.senderId === CURRENT_USER_ID) return;
+  // const handleMessage = (msg) => {
+  //   // ❌ Ignore messages sent by myself
+  //   if (msg.senderId === CURRENT_USER_ID) return;
 
-    setMessages(prev => {
-      const cid = String(msg.conversationId);
-      const existing = prev[cid] || [];
+  //   setMessages(prev => {
+  //     const cid = String(msg.conversationId);
+  //     const existing = prev[cid] || [];
 
-      if (existing.some(m => m.id === msg.id)) return prev;
+  //     if (existing.some(m => m.id === msg.id)) return prev;
 
-      return {
-        ...prev,
-        [cid]: [...existing, {
-          id: msg.id,
-          fromSelf: false,
-          text: msg.content,
-          createdAt: msg.createdAt,
-          time: new Date(msg.createdAt).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        }],
-      };
-    });
+  //     return {
+  //       ...prev,
+  //       [cid]: [...existing, {
+  //         id: msg.id,
+  //         fromSelf: false,
+  //         text: msg.content,
+  //         createdAt: msg.createdAt,
+  //         time: new Date(msg.createdAt).toLocaleTimeString([], {
+  //           hour: "2-digit",
+  //           minute: "2-digit",
+  //         }),
+  //       }],
+  //     };
+  //   });
 
-    // update sidebar preview
-    setConversations(prev =>
-      prev.map(c =>
-        c.id === String(msg.conversationId)
-          ? {
-            ...c,
-            lastMessage: msg.content,
-            lastTime: new Date(msg.createdAt).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            unread:
-              c.id === activeId ? 0 : (c.unread || 0) + 1,
-          }
-          : c
-      )
-    );
-  }
+  //   // update sidebar preview
+  //   setConversations(prev =>
+  //     prev.map(c =>
+  //       c.id === String(msg.conversationId)
+  //         ? {
+  //           ...c,
+  //           lastMessage: msg.content,
+  //           lastTime: new Date(msg.createdAt).toLocaleTimeString([], {
+  //             hour: "2-digit",
+  //             minute: "2-digit",
+  //           }),
+  //           unread:
+  //             c.id === activeId ? 0 : (c.unread || 0) + 1,
+  //         }
+  //         : c
+  //     )
+  //   );
+  // }
 
   async function flushOutbox() {
   if (flushingRef.current) return;
@@ -178,40 +180,53 @@ export default function ChatLayout({ currentUser, onLogout }) {
 }
 
 
-  const handleOnline = (users) => {
-    console.log("users:online received:", users);
-    setOnlineUsers(new Set(users));
-  }
+  // const handleOnline = (users) => {
+  //   console.log("users:online received:", users);
+  //   setOnlineUsers(new Set(users));
+  // }
 
-  useEffect(() => {
-    if (!socket) return;
+  // useEffect(() => {
+  //   if (!socket) return;
 
-    const onConnect = async () => {
-      console.log("Socket reconnected → flushing outbox");
-      await flushOutbox();
+  //   const onConnect = async () => {
+  //     console.log("Socket reconnected → flushing outbox");
+  //     await flushOutbox();
 
-    //loadMessages();
-    if (activeId) {
-      await fetchMissedMessages(activeId);
-    }
+  //   //loadMessages();
+  //   if (activeId) {
+  //     await fetchMissedMessages(activeId);
+  //   }
 
-    }
+  //   }
 
-    socket.on("users:online", handleOnline);
+  //   socket.on("users:online", handleOnline);
 
-    socket.on("message:new", handleMessage);
+  //   socket.on("message:new", handleMessage);
 
-    socket.on("connect", onConnect);
-    // window.addEventListener("online", flushOutbox);
+  //   socket.on("connect", onConnect);
+  //   // window.addEventListener("online", flushOutbox);
 
-    return () => {
-      socket.off("users:online", handleOnline);
-      socket.off("message:new", handleMessage);
-      socket.off("connect", onConnect);
-    }
+  //   return () => {
+  //     socket.off("users:online", handleOnline);
+  //     socket.off("message:new", handleMessage);
+  //     socket.off("connect", onConnect);
+  //   }
 
-  }, [socket]);
+  // }, [socket]);
 
+useChatSocket({
+  socket,
+  activeId,
+  currentUserId: CURRENT_USER_ID,
+  setMessages,
+  setConversations,
+  setOnlineUsers,
+  mapMessage,
+  onReconnect: async () => {
+    await flushOutbox();
+    if (activeId) fetchMissedMessages(activeId);
+  },
+});
 
 
   /* ================================
