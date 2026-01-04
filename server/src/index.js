@@ -68,10 +68,10 @@ app.use(`/api/${MESSAGE_API_VERSION_ENUM.V2}/message`, messageRoutesV2);
 const server = http.createServer(app);
 
 
-app.use("/api/user", userRoutesV1);
-app.use("/api/message", messageRoutesV1);
-app.use("/api/conversation", conversationRoutesV1);
-app.use("/api/auth", authRoutesV1);
+// app.use("/api/user", userRoutesV1);
+// app.use("/api/message", messageRoutesV1);
+// app.use("/api/conversation", conversationRoutesV1);
+// app.use("/api/auth", authRoutesV1);
 
 
 app.get("/", (req, res) => {

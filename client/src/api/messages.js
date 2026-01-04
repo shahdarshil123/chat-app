@@ -1,16 +1,19 @@
+import { MESSAGE_API_VERSION } from "../config";
+import { MESSAGE_API_VERSION_ENUM } from "../constants/apiVersions";
+
 export async function fetchMessages({
     conversationId,
     limit = 20,
     before,
-    version = "v2", // default version
+    version = MESSAGE_API_VERSION_ENUM.V2, // default version
 }){
     if(!conversationId){
         throw new Error("conversationId is required");
     }
 
-    if (version === 'v1'){
+    if (version === MESSAGE_API_VERSION_ENUM.V1){
         console.log("fetching messages using API version: v1");
-        const res = await fetch(`http://localhost:4000/api/v1/message/${conversationId}/messages`,
+        const res = await fetch(`http://localhost:4000/api/${version}/message/${conversationId}/messages`,
       { credentials: "include" });
 
     if (!res.ok) {
@@ -32,7 +35,7 @@ if (before) params.set("before", before);
 
 console.log("fetching messages using API version: v2");
 const res = await fetch(
-    `http://localhost:4000/api/v2/message/${conversationId}/messages?${params}`,
+    `http://localhost:4000/api/${version}/message/${conversationId}/messages?${params}`,
     {credentials: "include"}
 );
 if (!res.ok) {
