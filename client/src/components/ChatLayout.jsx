@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useState, useRef } from "react";
-import ConversationList from "./ConversationList";
-import ConversationHeader from "./ConversationHeader";
-import MessageFeed from "./MessageFeed";
-import MessageInput from "./MessageInput";
+import ConversationList from "./ConversationList.jsx";
+import ConversationHeader from "./ConversationHeader.jsx";
+import MessageFeed from "./MessageFeed.jsx";
+import MessageInput from "./MessageInput.jsx";
 
-import { fetchMessages } from "../api/messages";
-import { connectSocket} from "../socket";
+import { fetchMessages } from "../api/messages.js";
+import { connectSocket} from "../socket.js";
 import { addToOutbox, getOutboxMessages, removeFromOutbox } from "../db/outbox.js";
 
 import { MESSAGE_API_VERSION_ENUM, AUTH_API_VERSION_ENUM, USER_API_VERSION_ENUM, CONVERSATION_API_VERSION_ENUM } from "../constants/apiVersions.js";
 import { MESSAGE_API_VERSION, CONVERSATION_API_VERSION, AUTH_API_VERSION, USER_API_VERSION } from "../config.js";
+
+import {useMessages} from "../hooks/useMessages.js";
+
 
 /* ================================
    Chat Layout
@@ -24,8 +27,8 @@ export default function ChatLayout({ currentUser, onLogout }) {
   const sendingRef = useRef(Promise.resolve());
 
   const [conversations, setConversations] = useState([]);
-  const [messages, setMessages] = useState({});
-  const [pagination, setPagination] = useState({});
+  // const [messages, setMessages] = useState({});
+  // const [pagination, setPagination] = useState({});
   const [activeId, setActiveId] = useState(null); // Active conversation id
   const [search, setSearch] = useState("");
   const [unreadBoundary, setUnreadBoundary] = useState({});
@@ -36,6 +39,20 @@ export default function ChatLayout({ currentUser, onLogout }) {
     () => (CURRENT_USER_ID ? connectSocket(CURRENT_USER_ID) : null),
     [CURRENT_USER_ID]
   );
+
+   const {
+    messages,
+    pagination,
+    loadInitialMessages,
+    loadOlderMessages,
+    fetchMissedMessages,
+    setMessages,
+  } = useMessages({
+    activeId,
+    apiVersion: MESSAGE_API_VERSION,
+    fetchMessages,
+    mapMessage,
+  });
 
   //   useEffect(() => {
   //   flushOutbox();
@@ -58,28 +75,31 @@ export default function ChatLayout({ currentUser, onLogout }) {
     };
   }
 
-  async function fetchMissedMessages(conversationId) {
-  const existing = messages[conversationId];
-  if (!existing || existing.length === 0) return;
 
-  const lastMessage = existing[existing.length - 1];
+ 
 
-  const data = await fetchMessages({
-    conversationId,
-    after: lastMessage.createdAt,
-    version: MESSAGE_API_VERSION,
-  });
+//   async function fetchMissedMessages(conversationId) {
+//   const existing = messages[conversationId];
+//   if (!existing || existing.length === 0) return;
 
-  if (!data.messages.length) return;
+//   const lastMessage = existing[existing.length - 1];
 
-  setMessages(prev => ({
-    ...prev,
-    [conversationId]: [
-      ...prev[conversationId],
-      ...data.messages.map(mapMessage),
-    ],
-  }));
-}
+//   const data = await fetchMessages({
+//     conversationId,
+//     after: lastMessage.createdAt,
+//     version: MESSAGE_API_VERSION,
+//   });
+
+//   if (!data.messages.length) return;
+
+//   setMessages(prev => ({
+//     ...prev,
+//     [conversationId]: [
+//       ...prev[conversationId],
+//       ...data.messages.map(mapMessage),
+//     ],
+//   }));
+// }
 
   const handleMessage = (msg) => {
     // ❌ Ignore messages sent by myself
@@ -253,104 +273,104 @@ export default function ChatLayout({ currentUser, onLogout }) {
   ================================ */
 
 
-async function loadInitialMessages(conversationId){
-  if(!conversationId) return;
+// async function loadInitialMessages(conversationId){
+//   if(!conversationId) return;
 
-  if(messages[conversationId]) return;
+//   if(messages[conversationId]) return;
 
-  if(MESSAGE_API_VERSION === MESSAGE_API_VERSION_ENUM.V1){
-     // 🔹 V1: load ALL messages at once
-    const res = await fetch(
-      `http://localhost:4000/api/${MESSAGE_API_VERSION}/message/${conversationId}/messages`,
-      { credentials: "include" }
-    );
+//   if(MESSAGE_API_VERSION === MESSAGE_API_VERSION_ENUM.V1){
+//      // 🔹 V1: load ALL messages at once
+//     const res = await fetch(
+//       `http://localhost:4000/api/${MESSAGE_API_VERSION}/message/${conversationId}/messages`,
+//       { credentials: "include" }
+//     );
 
-    const data = await res.json();
+//     const data = await res.json();
 
-    setMessages(prev => ({
-      ...prev,
-      [conversationId]: data.messages.map(mapMessage),
-    }));
+//     setMessages(prev => ({
+//       ...prev,
+//       [conversationId]: data.messages.map(mapMessage),
+//     }));
 
-    // ❌ no pagination state
-    setPagination(prev => ({
-      ...prev,
-      [conversationId]: { hasMore: false },
-    }));
+//     // ❌ no pagination state
+//     setPagination(prev => ({
+//       ...prev,
+//       [conversationId]: { hasMore: false },
+//     }));
 
-    return;
-  }
+//     return;
+//   }
 
-  // v2: cursor based pagination
-  setPagination(prev =>({
-    ...prev,
-    [conversationId]: {loading: true},
-  }));
+//   // v2: cursor based pagination
+//   setPagination(prev =>({
+//     ...prev,
+//     [conversationId]: {loading: true},
+//   }));
 
-  const data = await fetchMessages({
-    conversationId,
-    limit: 20,
-    version: MESSAGE_API_VERSION,
-  });
+//   const data = await fetchMessages({
+//     conversationId,
+//     limit: 20,
+//     version: MESSAGE_API_VERSION,
+//   });
 
-  setMessages(prev=>({
-    ...prev,
-    [conversationId]: data.messages.map(mapMessage),
-  }));
+//   setMessages(prev=>({
+//     ...prev,
+//     [conversationId]: data.messages.map(mapMessage),
+//   }));
 
-  setPagination(prev => ({
-    ...prev,
-    [conversationId]:{
-      hasMore: data.hasMore,
-      oldestCursor: data.oldestCursor,
-      loading: false,
-    },
-  }));
+//   setPagination(prev => ({
+//     ...prev,
+//     [conversationId]:{
+//       hasMore: data.hasMore,
+//       oldestCursor: data.oldestCursor,
+//       loading: false,
+//     },
+//   }));
 
-}
+// }
 
 
-async function loadOlderMessages() {
-  if (MESSAGE_API_VERSION === MESSAGE_API_VERSION_ENUM.V1) return;
+// async function loadOlderMessages() {
+//   if (MESSAGE_API_VERSION === MESSAGE_API_VERSION_ENUM.V1) return;
 
-  const page = pagination[activeId];
-  if (!page || !page.hasMore || page.loading) return;
+//   const page = pagination[activeId];
+//   if (!page || !page.hasMore || page.loading) return;
 
-  const container = document.querySelector(".messages");
-  const prevHeight = container.scrollHeight;
+//   const container = document.querySelector(".messages");
+//   const prevHeight = container.scrollHeight;
 
-  setPagination(prev => ({
-    ...prev,
-    [activeId]: { ...prev[activeId], loading: true },
-  }));
+//   setPagination(prev => ({
+//     ...prev,
+//     [activeId]: { ...prev[activeId], loading: true },
+//   }));
 
-  console.log(`Next Page: messages fetching...`);
-  const data = await fetchMessages({
-    conversationId: activeId,
-    limit: 20,
-    before: page.oldestCursor,
-    version: MESSAGE_API_VERSION,
-  });
+//   console.log(`Next Page: messages fetching...`);
+//   const data = await fetchMessages({
+//     conversationId: activeId,
+//     limit: 20,
+//     before: page.oldestCursor,
+//     version: MESSAGE_API_VERSION,
+//   });
 
-  setMessages(prev => ({
-    ...prev,
-    [activeId]: [...data.messages.map(mapMessage), ...prev[activeId]],
-  }));
+//   setMessages(prev => ({
+//     ...prev,
+//     [activeId]: [...data.messages.map(mapMessage), ...prev[activeId]],
+//   }));
 
-  setPagination(prev => ({
-    ...prev,
-    [activeId]: {
-      hasMore: data.hasMore,
-      oldestCursor: data.oldestCursor,
-      loading: false,
-    },
-  }));
+//   setPagination(prev => ({
+//     ...prev,
+//     [activeId]: {
+//       hasMore: data.hasMore,
+//       oldestCursor: data.oldestCursor,
+//       loading: false,
+//     },
+//   }));
 
-  // 🔑 preserve scroll position
-  requestAnimationFrame(() => {
-    container.scrollTop = container.scrollHeight - prevHeight;
-  });
-}
+//   // 🔑 preserve scroll position
+//   requestAnimationFrame(() => {
+//     container.scrollTop = container.scrollHeight - prevHeight;
+//   });
+// }
 
 
   useEffect(() => {
@@ -376,6 +396,8 @@ async function loadOlderMessages() {
 
     return () => clearTimeout(timeout);
   }, [activeId]);
+
+
 
   async function selectConversation(id) {
     setActiveId(id);
