@@ -6,9 +6,10 @@ import MessageInput from "./MessageInput";
 
 import { fetchMessages } from "../api/messages";
 import { connectSocket} from "../socket";
-import { addToOutbox, getOutboxMessages, removeFromOutbox } from "../db/outbox";
+import { addToOutbox, getOutboxMessages, removeFromOutbox } from "../db/outbox.js";
 
-
+import { MESSAGE_API_VERSION_ENUM } from "../constants/apiVersions.js";
+import { MESSAGE_API_VERSION } from "../config.js";
 
 /* ================================
    Temporary Logged-in User
@@ -19,9 +20,11 @@ import { addToOutbox, getOutboxMessages, removeFromOutbox } from "../db/outbox";
    Chat Layout
 ================================ */
 export default function ChatLayout({ currentUser, onLogout }) {
+  // const MESSAGE_API_VERSION = import.meta.env.VITE_MESSAGE_API_VERSION;
+  console.log("Message API version:", MESSAGE_API_VERSION);
   const CURRENT_USER_ID = currentUser.id;
 
-  const chatContainerRef = useRef(null);
+  // const chatContainerRef = useRef(null);
   const flushingRef = useRef(false);
   const sendingRef = useRef(Promise.resolve());
 
@@ -69,7 +72,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
   const data = await fetchMessages({
     conversationId,
     after: lastMessage.createdAt,
-    version: "v2",
+    version: MESSAGE_API_VERSION,
   });
 
   if (!data.messages.length) return;
@@ -258,6 +261,32 @@ export default function ChatLayout({ currentUser, onLogout }) {
 async function loadInitialMessages(conversationId){
   if(!conversationId) return;
 
+  if(messages[conversationId]) return;
+
+  if(MESSAGE_API_VERSION === MESSAGE_API_VERSION_ENUM.V1){
+     // 🔹 V1: load ALL messages at once
+    const res = await fetch(
+      `http://localhost:4000/api/v1/message/${conversationId}/messages`,
+      { credentials: "include" }
+    );
+
+    const data = await res.json();
+
+    setMessages(prev => ({
+      ...prev,
+      [conversationId]: data.messages.map(mapMessage),
+    }));
+
+    // ❌ no pagination state
+    setPagination(prev => ({
+      ...prev,
+      [conversationId]: { hasMore: false },
+    }));
+
+    return;
+  }
+
+  // v2: cursor based pagination
   setPagination(prev =>({
     ...prev,
     [conversationId]: {loading: true},
@@ -266,7 +295,7 @@ async function loadInitialMessages(conversationId){
   const data = await fetchMessages({
     conversationId,
     limit: 20,
-    version: "v2",
+    version: MESSAGE_API_VERSION,
   });
 
   setMessages(prev=>({
@@ -287,6 +316,8 @@ async function loadInitialMessages(conversationId){
 
 
 async function loadOlderMessages() {
+  if (MESSAGE_API_VERSION === MESSAGE_API_VERSION_ENUM.V1) return;
+
   const page = pagination[activeId];
   if (!page || !page.hasMore || page.loading) return;
 
@@ -303,7 +334,7 @@ async function loadOlderMessages() {
     conversationId: activeId,
     limit: 20,
     before: page.oldestCursor,
-    version: "v2",
+    version: MESSAGE_API_VERSION,
   });
 
   setMessages(prev => ({

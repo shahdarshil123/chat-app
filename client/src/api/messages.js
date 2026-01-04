@@ -1,6 +1,6 @@
 export async function fetchMessages({
     conversationId,
-    limit,
+    limit = 20,
     before,
     version = "v2", // default version
 }){
