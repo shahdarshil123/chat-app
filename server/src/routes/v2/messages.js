@@ -68,8 +68,9 @@ router.get("/:conversationId/messages", requireAuth, async (req, res)=>{
         const conversationId = parseInt(req.params.conversationId)
         const limit = Math.min(Number(req.query.limit) || 20, 50);
         const before = req.query.before || null;
+        const after = req.query.after || null;
 
-        const messages = await getMessagesV2({conversationId, limit, before});
+        const messages = await getMessagesV2({conversationId, limit, before, after});
         if(!messages){
             res.status(400).json({ error: 'Failed to get message' });
         }

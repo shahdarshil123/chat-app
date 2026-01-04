@@ -56,6 +56,7 @@ export async function getMessagesV2({
     conversationId: conversationId,
     limit,
     before,
+    after,
 }) {
     // 🛑 HARD GUARD — prevents full-table scan
     if (!conversationId || Number.isNaN(conversationId)) {
@@ -73,6 +74,7 @@ export async function getMessagesV2({
                     },
                 }
                 : {}),
+                ...(after && { createdAt: { gt: new Date(after) } }),
         },
         orderBy: {
             createdAt: "desc",

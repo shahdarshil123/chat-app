@@ -60,6 +60,29 @@ export default function ChatLayout({ currentUser, onLogout }) {
     };
   }
 
+  async function fetchMissedMessages(conversationId) {
+  const existing = messages[conversationId];
+  if (!existing || existing.length === 0) return;
+
+  const lastMessage = existing[existing.length - 1];
+
+  const data = await fetchMessages({
+    conversationId,
+    after: lastMessage.createdAt,
+    version: "v2",
+  });
+
+  if (!data.messages.length) return;
+
+  setMessages(prev => ({
+    ...prev,
+    [conversationId]: [
+      ...prev[conversationId],
+      ...data.messages.map(mapMessage),
+    ],
+  }));
+}
+
   const handleMessage = (msg) => {
     // ❌ Ignore messages sent by myself
     if (msg.senderId === CURRENT_USER_ID) return;
@@ -145,11 +168,14 @@ export default function ChatLayout({ currentUser, onLogout }) {
   useEffect(() => {
     if (!socket) return;
 
-    const onConnect = () => {
+    const onConnect = async () => {
       console.log("Socket reconnected → flushing outbox");
-      flushOutbox();
+      await flushOutbox();
 
     //loadMessages();
+    if (activeId) {
+      await fetchMissedMessages(activeId);
+    }
 
     }
 

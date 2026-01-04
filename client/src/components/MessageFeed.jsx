@@ -59,7 +59,7 @@ function handleScroll(e) {
       {messages.map(m => (
         <div key={m.id}>
           {unreadStartId === m.id && (
-            <div className="unread-divider">anUnread messages</div>
+            <div className="unread-divider">Unread messages</div>
           )}
 
           <div className={`message-row ${m.fromSelf ? "self" : "other"}`}>
