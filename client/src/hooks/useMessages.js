@@ -107,25 +107,28 @@ export function useMessages({
   /* ----------------------------------
      Fetch missed messages (reconnect)
   ---------------------------------- */
-  async function fetchMissedMessages(conversationId, after) {
-    if (!conversationId || !after) return;
+  async function fetchMissedMessages(conversationId) {
+  const existing = messages[conversationId];
+  if (!existing || !existing.length) return;
 
-    const data = await fetchMessages({
-      conversationId,
-      after,
-      version: apiVersion,
-    });
+  const last = existing[existing.length - 1];
 
-    if (!data.messages.length) return;
+  const data = await fetchMessages({
+    conversationId,
+    after: last.createdAt,
+    version: apiVersion,
+  });
 
-    setMessages(prev => ({
-      ...prev,
-      [conversationId]: [
-        ...(prev[conversationId] || []),
-        ...data.messages.map(mapMessage),
-      ],
-    }));
-  }
+  if (!data.messages.length) return;
+
+  setMessages(prev => ({
+    ...prev,
+    [conversationId]: [
+      ...prev[conversationId],
+      ...data.messages.map(mapMessage),
+    ],
+  }));
+}
 
   return {
     messages,

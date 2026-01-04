@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import ConversationList from "./ConversationList.jsx";
 import ConversationHeader from "./ConversationHeader.jsx";
 import MessageFeed from "./MessageFeed.jsx";
@@ -13,7 +13,7 @@ import { MESSAGE_API_VERSION, CONVERSATION_API_VERSION, AUTH_API_VERSION, USER_A
 
 import {useMessages} from "../hooks/useMessages.js";
 import { useChatSocket } from "../hooks/useChatSocket.js";
-
+import { useOutbox } from "../hooks/useOutbox.js";
 
 
 /* ================================
@@ -37,30 +37,9 @@ export default function ChatLayout({ currentUser, onLogout }) {
 
   const [onlineUsers, setOnlineUsers] = useState(new Set());
 
-  const socket = useMemo(
-    () => (CURRENT_USER_ID ? connectSocket(CURRENT_USER_ID) : null),
-    [CURRENT_USER_ID]
-  );
 
-   const {
-    messages,
-    pagination,
-    loadInitialMessages,
-    loadOlderMessages,
-    fetchMissedMessages,
-    setMessages,
-  } = useMessages({
-    activeId,
-    apiVersion: MESSAGE_API_VERSION,
-    fetchMessages,
-    mapMessage,
-  });
 
-  //   useEffect(() => {
-  //   flushOutbox();
-  // }, []);
-
-  /* ================================
+   /* ================================
      Helpers
   ================================ */
   function mapMessage(m) {
@@ -77,142 +56,71 @@ export default function ChatLayout({ currentUser, onLogout }) {
     };
   }
 
+   const {
+    messages,
+    pagination,
+    loadInitialMessages,
+    loadOlderMessages,
+    fetchMissedMessages,
+    setMessages,
+  } = useMessages({
+    activeId,
+    apiVersion: MESSAGE_API_VERSION,
+    fetchMessages,
+    mapMessage,
+  });
 
- 
+  async function sendMessagePayload({ conversationId, content }) {
+    console.log("➡️ Sending to server:", {
+      conversationId,
+      content,
+    });
 
-//   async function fetchMissedMessages(conversationId) {
-//   const existing = messages[conversationId];
-//   if (!existing || existing.length === 0) return;
+    const res = await fetch(
+      `http://localhost:4000/api/${MESSAGE_API_VERSION}/message/${conversationId}/messages`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId, content }),
+      }
+    );
 
-//   const lastMessage = existing[existing.length - 1];
+    console.log("⬅️ Server response status:", res.status);
 
-//   const data = await fetchMessages({
-//     conversationId,
-//     after: lastMessage.createdAt,
-//     version: MESSAGE_API_VERSION,
-//   });
-
-//   if (!data.messages.length) return;
-
-//   setMessages(prev => ({
-//     ...prev,
-//     [conversationId]: [
-//       ...prev[conversationId],
-//       ...data.messages.map(mapMessage),
-//     ],
-//   }));
-// }
-
-  // const handleMessage = (msg) => {
-  //   // ❌ Ignore messages sent by myself
-  //   if (msg.senderId === CURRENT_USER_ID) return;
-
-  //   setMessages(prev => {
-  //     const cid = String(msg.conversationId);
-  //     const existing = prev[cid] || [];
-
-  //     if (existing.some(m => m.id === msg.id)) return prev;
-
-  //     return {
-  //       ...prev,
-  //       [cid]: [...existing, {
-  //         id: msg.id,
-  //         fromSelf: false,
-  //         text: msg.content,
-  //         createdAt: msg.createdAt,
-  //         time: new Date(msg.createdAt).toLocaleTimeString([], {
-  //           hour: "2-digit",
-  //           minute: "2-digit",
-  //         }),
-  //       }],
-  //     };
-  //   });
-
-  //   // update sidebar preview
-  //   setConversations(prev =>
-  //     prev.map(c =>
-  //       c.id === String(msg.conversationId)
-  //         ? {
-  //           ...c,
-  //           lastMessage: msg.content,
-  //           lastTime: new Date(msg.createdAt).toLocaleTimeString([], {
-  //             hour: "2-digit",
-  //             minute: "2-digit",
-  //           }),
-  //           unread:
-  //             c.id === activeId ? 0 : (c.unread || 0) + 1,
-  //         }
-  //         : c
-  //     )
-  //   );
-  // }
-
-  async function flushOutbox() {
-  if (flushingRef.current) return;
-  flushingRef.current = true;
-
-  try {
-    const queued = (await getOutboxMessages())
-      .sort((a, b) => a.createdAt - b.createdAt);
-
-    for (const msg of queued) {
-      const res = await enqueueSend(async () => {
-         return await sendMessagePayload({
-          conversationId: msg.conversationId,
-          content: msg.content,
-        });
-      });
-
-        if (res.ok) {
-          await removeFromOutbox(msg.id);
-
-          setMessages(prev => ({
-            ...prev,
-            [msg.conversationId]: prev[msg.conversationId].map(m =>
-              m.id === msg.id ? { ...m, status: "sent" } : m
-            ),
-          }));
-        }
-    }
-  } finally {
-    flushingRef.current = false;
+    return res;
   }
-}
 
+   /* =====================================
+     Outbox (online-first)
+  ===================================== */
+  const { queueMessage, flushOutbox } = useOutbox({
+    sendMessagePayload,
+    onMessageSent: msg => {
+      setMessages(prev => ({
+        ...prev,
+        [msg.conversationId]: prev[msg.conversationId].map(m =>
+          m.id === msg.id ? { ...m, status: "sent" } : m
+        ),
+      }));
+    },
+  });
 
-  // const handleOnline = (users) => {
-  //   console.log("users:online received:", users);
-  //   setOnlineUsers(new Set(users));
-  // }
+/* =====================================
+     Socket
+  ===================================== */
 
-  // useEffect(() => {
-  //   if (!socket) return;
+    const socket = useMemo(
+    () => (CURRENT_USER_ID ? connectSocket(CURRENT_USER_ID) : null),
+    [CURRENT_USER_ID]
+  );
 
-  //   const onConnect = async () => {
-  //     console.log("Socket reconnected → flushing outbox");
-  //     await flushOutbox();
-
-  //   //loadMessages();
-  //   if (activeId) {
-  //     await fetchMissedMessages(activeId);
-  //   }
-
-  //   }
-
-  //   socket.on("users:online", handleOnline);
-
-  //   socket.on("message:new", handleMessage);
-
-  //   socket.on("connect", onConnect);
-  //   // window.addEventListener("online", flushOutbox);
-
-  //   return () => {
-  //     socket.off("users:online", handleOnline);
-  //     socket.off("message:new", handleMessage);
-  //     socket.off("connect", onConnect);
-  //   }
-
-  // }, [socket]);
+  const handleReconnect = useCallback(async () => {
+    await flushOutbox();
+    if (activeId) {
+      fetchMissedMessages(activeId);
+    }
+  }, [flushOutbox, activeId, fetchMissedMessages]);
 
 useChatSocket({
   socket,
@@ -222,10 +130,7 @@ useChatSocket({
   setConversations,
   setOnlineUsers,
   mapMessage,
-  onReconnect: async () => {
-    await flushOutbox();
-    if (activeId) fetchMissedMessages(activeId);
-  },
+  onReconnect: handleReconnect,
 });
 
 
@@ -279,7 +184,7 @@ useChatSocket({
     }
 
     loadConversations();
-  }, []);
+  }, [CURRENT_USER_ID]);
 
 
 
@@ -416,7 +321,7 @@ useChatSocket({
 
   async function selectConversation(id) {
     setActiveId(id);
-    loadInitialMessages(id);
+    await loadInitialMessages(id);
 
     const convo = conversations.find(c => c.id === id);
     if (convo?.lastReadAt) {
@@ -465,26 +370,7 @@ useChatSocket({
   }, [activeId, activeMessages, unreadBoundary]);
 
 
-  async function sendMessagePayload({ conversationId, content }) {
-    console.log("➡️ Sending to server:", {
-      conversationId,
-      content,
-    });
 
-    const res = await fetch(
-      `http://localhost:4000/api/${MESSAGE_API_VERSION}/message/${conversationId}/messages`,
-      {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId, content }),
-      }
-    );
-
-    console.log("⬅️ Server response status:", res.status);
-
-    return res;
-  }
 
   function enqueueSend(task) {
   sendingRef.current = sendingRef.current
@@ -535,21 +421,19 @@ async function sendMessage(text) {
   );
 
   // ---------- 4️⃣ Store ONCE in IndexedDB ----------
-  await addToOutbox({
-    id: tempMessage.id,
-    conversationId: activeId,
-    content: text,
-    createdAt: now,
-  });
+  // await addToOutbox({
+  //   id: tempMessage.id,
+  //   conversationId: activeId,
+  //   content: text,
+  //   createdAt: now,
+  // });
 
   try {
     // ---------- 5️⃣ Try sending to server ----------
-    const res = await enqueueSend(async () => {
-  return await sendMessagePayload({
-    conversationId: activeId,
-    content: text,
-  });
-});
+   const res = await sendMessagePayload({
+      conversationId: activeId,
+      content: text,
+    });
 
 if (!res.ok) throw new Error("Send failed");
 
@@ -573,14 +457,14 @@ if (!res.ok) throw new Error("Send failed");
     }));
 
     // ---------- 7️⃣ Remove from IndexedDB ----------
-    await removeFromOutbox(tempMessage.id);
+    //await removeFromOutbox(tempMessage.id);
   } catch {
-    // ❌ DO NOTHING
-    // Message remains:
-    // - visible in UI
-    // - status = pending
-    // - stored in IndexedDB
-    // - will be sent by flushOutbox()
+    await queueMessage({
+      id: tempMessage.id,
+      conversationId: activeId,
+      content: text,
+      createdAt: now,
+    });
   }
 }
 
