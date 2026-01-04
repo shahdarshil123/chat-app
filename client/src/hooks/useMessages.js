@@ -43,6 +43,7 @@ export function useMessages({
       [conversationId]: data.messages.map(mapMessage),
     }));
 
+    // ✅ always reset pagination state for this conversation
     setPagination(prev => ({
       ...prev,
       [conversationId]: {
@@ -108,27 +109,27 @@ export function useMessages({
      Fetch missed messages (reconnect)
   ---------------------------------- */
   async function fetchMissedMessages(conversationId) {
-  const existing = messages[conversationId];
-  if (!existing || !existing.length) return;
+    const existing = messages[conversationId];
+    if (!existing || !existing.length) return;
 
-  const last = existing[existing.length - 1];
+    const last = existing[existing.length - 1];
 
-  const data = await fetchMessages({
-    conversationId,
-    after: last.createdAt,
-    version: apiVersion,
-  });
+    const data = await fetchMessages({
+      conversationId,
+      after: last.createdAt,
+      version: apiVersion,
+    });
 
-  if (!data.messages.length) return;
+    if (!data.messages.length) return;
 
-  setMessages(prev => ({
-    ...prev,
-    [conversationId]: [
-      ...prev[conversationId],
-      ...data.messages.map(mapMessage),
-    ],
-  }));
-}
+    setMessages(prev => ({
+      ...prev,
+      [conversationId]: [
+        ...prev[conversationId],
+        ...data.messages.map(mapMessage),
+      ],
+    }));
+  }
 
   return {
     messages,

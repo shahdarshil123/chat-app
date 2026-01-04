@@ -19,8 +19,7 @@ import { useConversations } from "../hooks/useConversations.js";
 /* ================================
    Chat Layout
 ================================ */
-export default function ChatLayout({ currentUser, onLogout }) {
-  // const MESSAGE_API_VERSION = import.meta.env.VITE_MESSAGE_API_VERSION;
+export default function ChatLayout({ currentUser, onLogout }) {;
   console.log("Message API version:", MESSAGE_API_VERSION);
   const CURRENT_USER_ID = currentUser.id;
 

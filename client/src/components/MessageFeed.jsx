@@ -18,6 +18,9 @@ export default function MessageFeed({
   // Track if we scrolled after THIS activation
   const didInitialScrollRef = useRef(false);
 
+  // 🔑 Track height before PREPEND
+  const prevScrollHeightRef = useRef(null);
+
   /* =====================================================
      1️⃣ Reset initial-scroll flag when conversation changes
      ===================================================== */
@@ -26,6 +29,7 @@ export default function MessageFeed({
       didInitialScrollRef.current = false;
       prevConversationRef.current = activeId;
       prevMessageCountRef.current = 0;
+      prevScrollHeightRef.current = null;
     }
   }, [activeId]);
 
@@ -46,6 +50,22 @@ export default function MessageFeed({
   }, [activeId, messages]);
 
   /* =====================================================
+     3️⃣ Restore scroll after PREPEND
+     ===================================================== */
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    if (prevScrollHeightRef.current !== null) {
+      container.scrollTop =
+        container.scrollHeight -
+        prevScrollHeightRef.current;
+
+      prevScrollHeightRef.current = null;
+    }
+  }, [messages]);
+
+  /* =====================================================
      3️⃣ Auto-scroll ONLY when messages are appended
      ===================================================== */
   useEffect(() => {
@@ -55,7 +75,8 @@ export default function MessageFeed({
     const prevCount = prevMessageCountRef.current;
     const currCount = messages.length;
 
-    const appended = currCount > prevCount;
+    const appended = currCount > prevCount &&
+      prevScrollHeightRef.current === null;
 
     if (appended) {
       const isNearBottom =
@@ -76,6 +97,7 @@ export default function MessageFeed({
      ===================================================== */
   function handleScroll(e) {
     if (e.target.scrollTop === 0) {
+      prevScrollHeightRef.current = e.target.scrollHeight;
       onLoadOlder?.();
     }
   }
