@@ -3,18 +3,57 @@ export class AutoSuggestStrategy {
         this.llm = llmAdapter;
     }
 
+    isSentenceComplete(text) {
+        return /[.!?]\s*$/.test(text.trim());
+    }
+
+    looksIncomplete(text) {
+        const incompletePatterns = [
+            /\b(to|for|with|at|on)$/i,
+            /\b(will|should|can|could|let's|lets)$/i,
+            /\b(meet|call|send|do|check)$/i
+        ];
+
+        return incompletePatterns.some(p => p.test(text.trim()));
+    }
+
+    shouldInvokeLLM(input) {
+        console.log("check1");
+        if (!input || input.length < 3) return false;
+
+        console.log("check2");
+        if (this.isSentenceComplete(input)) return false;
+
+        // if (this.looksIncomplete(input)) return true;
+
+        // fallback: last word unfinished
+        const lastWord = input.split(" ").pop();
+        console.log(lastWord);
+        if (lastWord.length >= 3 && lastWord.length < 8) return true;
+
+        return false;
+    }
+
     async generate({ input, conversation = [] }) {
-        if (!input || input.length < 3) {
+        if (!this.shouldInvokeLLM(input)) {
             return { suggestion: "" };
         }
 
+
         const prompt = `
 Continue the user's sentence naturally.
+The user is typing a message.
+Only continue the sentence if it is incomplete.
 
 Rules:
-- Do NOT repeat the input
+- Do NOT complete finished sentences
+- Do NOT repeat input
+- continue from the unfinished sentence
 - Max 10 words
 - No punctuation at the end
+- Return empty if no continuation is needed
+
+Input:
 
 Conversation:
 ${conversation.join("\n")}
