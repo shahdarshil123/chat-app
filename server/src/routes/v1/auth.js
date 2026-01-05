@@ -1,6 +1,5 @@
 import express from 'express';
-import { createUser, getUserByEmail, verifyPassword, updateUserLastSeen } from '../../db/users.js';
-// import { disconnectUserSockets } from '../sockets.js';
+import {userLoginService} from "../../services/auth.service.js";
 
 const router = express.Router();
 
@@ -16,17 +15,10 @@ router.post('/login', async (req, res) => {
             });
         }
 
-        const user = await getUserByEmail(email);
+        const user = await userLoginService(email, password);
         console.log(user);
 
         if (!user) {
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-
-        // Verify password
-        const valid = await verifyPassword(user, password);
-
-        if (!valid) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
@@ -38,9 +30,6 @@ router.post('/login', async (req, res) => {
                 return res.status(500).json({ error: 'Session save failed' });
             }
 
-            // Update status to online
-            await updateUserLastSeen(user.id);
-
             // Send response only after session is saved
             res.json({ 
                 id: user.id, 
@@ -49,12 +38,6 @@ router.post('/login', async (req, res) => {
                 lastSeen: user.lastSeen 
             });
         });
-
-        // Update status to online
-        // await updateUserLastSeen(user.id);
-
-        // res.json({ id: user.id, email: user.email, displayName: user.displayName, lastSeen: user.lastSeen });
-
     }
     catch (error) {
         console.error('Login error:', error);
