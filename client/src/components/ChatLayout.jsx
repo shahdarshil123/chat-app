@@ -157,6 +157,7 @@ useChatSocket({
 
       const mapped = json.conversations.map(item => {
         const conv = item.conversation;
+        const lastMsg = item.lastMessage;
 
         // Determine title
         let title = conv.name;
@@ -179,10 +180,16 @@ useChatSocket({
             .map(w => w[0])
             .join("")
             .toUpperCase(),
-          lastMessage: "",
-          lastTime: "",
+          lastMessage: lastMsg?.content || "",
+          lastTime: lastMsg
+            ? new Date(lastMsg.createdAt).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "",
           unread: item.unreadCount,
           lastReadAt: item.lastReadAt, // backend read timestamp
+          updatedAt: conv.updatedAt,
         };
       });
 
@@ -194,113 +201,8 @@ useChatSocket({
     }
 
     loadConversations();
-  }, [CURRENT_USER_ID]);
+  }, [CURRENT_USER_ID, setConversations]);
 
-
-
-  /* ================================
-     Load Messages (per conversation)
-  ================================ */
-
-
-// async function loadInitialMessages(conversationId){
-//   if(!conversationId) return;
-
-//   if(messages[conversationId]) return;
-
-//   if(MESSAGE_API_VERSION === MESSAGE_API_VERSION_ENUM.V1){
-//      // 🔹 V1: load ALL messages at once
-//     const res = await fetch(
-//       `http://localhost:4000/api/${MESSAGE_API_VERSION}/message/${conversationId}/messages`,
-//       { credentials: "include" }
-//     );
-
-//     const data = await res.json();
-
-//     setMessages(prev => ({
-//       ...prev,
-//       [conversationId]: data.messages.map(mapMessage),
-//     }));
-
-//     // ❌ no pagination state
-//     setPagination(prev => ({
-//       ...prev,
-//       [conversationId]: { hasMore: false },
-//     }));
-
-//     return;
-//   }
-
-//   // v2: cursor based pagination
-//   setPagination(prev =>({
-//     ...prev,
-//     [conversationId]: {loading: true},
-//   }));
-
-//   const data = await fetchMessages({
-//     conversationId,
-//     limit: 20,
-//     version: MESSAGE_API_VERSION,
-//   });
-
-//   setMessages(prev=>({
-//     ...prev,
-//     [conversationId]: data.messages.map(mapMessage),
-//   }));
-
-//   setPagination(prev => ({
-//     ...prev,
-//     [conversationId]:{
-//       hasMore: data.hasMore,
-//       oldestCursor: data.oldestCursor,
-//       loading: false,
-//     },
-//   }));
-
-// }
-
-
-// async function loadOlderMessages() {
-//   if (MESSAGE_API_VERSION === MESSAGE_API_VERSION_ENUM.V1) return;
-
-//   const page = pagination[activeId];
-//   if (!page || !page.hasMore || page.loading) return;
-
-//   const container = document.querySelector(".messages");
-//   const prevHeight = container.scrollHeight;
-
-//   setPagination(prev => ({
-//     ...prev,
-//     [activeId]: { ...prev[activeId], loading: true },
-//   }));
-
-//   console.log(`Next Page: messages fetching...`);
-//   const data = await fetchMessages({
-//     conversationId: activeId,
-//     limit: 20,
-//     before: page.oldestCursor,
-//     version: MESSAGE_API_VERSION,
-//   });
-
-//   setMessages(prev => ({
-//     ...prev,
-//     [activeId]: [...data.messages.map(mapMessage), ...prev[activeId]],
-//   }));
-
-//   setPagination(prev => ({
-//     ...prev,
-//     [activeId]: {
-//       hasMore: data.hasMore,
-//       oldestCursor: data.oldestCursor,
-//       loading: false,
-//     },
-//   }));
-
-//   // 🔑 preserve scroll position
-//   requestAnimationFrame(() => {
-//     container.scrollTop = container.scrollHeight - prevHeight;
-//   });
-// }
 
 
   useEffect(() => {
@@ -344,6 +246,14 @@ useChatSocket({
   /* ================================
      Derived State
   ================================ */
+  const sortedConversations = useMemo(() => {
+    return [...conversations].sort((a, b) => {
+      const ta = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const tb = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      return tb - ta;
+    });
+  }, [conversations]);
+  
   let activeConversation = useMemo(
     () => conversations.find(c => c.id === activeId),
     [conversations, activeId]
@@ -414,19 +324,35 @@ async function sendMessage(text) {
   }));
 
   // ---------- 3️⃣ Optimistic SIDEBAR update ----------
-  setConversations(prev =>
-    prev.map(c =>
-      c.id === activeId
-        ? {
-            ...c,
-            lastMessage: text,
-            lastTime: time,
-            unread: 0,
-          }
-        : c
-    )
-  );
+  // setConversations(prev =>
+  //   prev.map(c =>
+  //     c.id === activeId
+  //       ? {
+  //           ...c,
+  //           lastMessage: text,
+  //           lastTime: time,
+  //           unread: 0,
+  //         }
+  //       : c
+  //   )
+  // );
+  setConversations(prev => {
+      const convo = prev.find(c => c.id === activeId);
+      if (!convo) return prev;
 
+      const updated = {
+        ...convo,
+        lastMessage: text,
+        lastTime: time,
+        unread: 0,
+        updatedAt: new Date(now).toISOString(),
+      };
+
+      return [
+        updated,
+        ...prev.filter(c => c.id !== activeId),
+      ];
+    });
   // ---------- 4️⃣ Store ONCE in IndexedDB ----------
   // await addToOutbox({
   //   id: tempMessage.id,

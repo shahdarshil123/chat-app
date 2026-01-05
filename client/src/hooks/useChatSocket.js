@@ -20,6 +20,8 @@ export function useChatSocket({
     function handleMessage(msg) {
       if (msg.senderId === currentUserId) return;
 
+      const convoId = String(msg.conversationId);
+
       setMessages(prev => ({
         ...prev,
         [msg.conversationId]: [
@@ -28,18 +30,43 @@ export function useChatSocket({
         ],
       }));
 
-      setConversations(prev =>
-        prev.map(c =>
-          c.id === String(msg.conversationId)
-            ? {
-                ...c,
-                lastMessage: msg.content,
-                unread:
-                  c.id === activeId ? 0 : (c.unread || 0) + 1,
-              }
-            : c
-        )
-      );
+      // setConversations(prev =>
+      //   prev.map(c =>
+      //     c.id === String(msg.conversationId)
+      //       ? {
+      //           ...c,
+      //           lastMessage: msg.content,
+      //           unread:
+      //             c.id === activeId ? 0 : (c.unread || 0) + 1,
+      //         }
+      //       : c
+      //   )
+      // );
+
+      setConversations(prev => {
+        const existing = prev.find(c => c.id === convoId);
+        if (!existing) return prev;
+
+        const updated = {
+          ...existing,
+          lastMessage: msg.content,
+          lastTime: new Date(msg.createdAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          unread:
+            convoId === activeId
+              ? 0
+              : (existing.unread || 0) + 1,
+          updatedAt: msg.createdAt, // 🔑 MUST update
+        };
+
+        // 🔑 REMOVE + PREPEND (do NOT rely on sort)
+        return [
+          updated,
+          ...prev.filter(c => c.id !== convoId),
+        ];
+      });
     }
 
     socket.on("users:online", handleOnline);

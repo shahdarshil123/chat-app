@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 export function useConversations({
   currentUserId,
@@ -30,6 +30,7 @@ export function useConversations({
               ? conv.name
               : other.user.displayName;
 
+          const lastMsg = item.lastMessage;
           return {
             id: String(conv.id),
             title,
@@ -40,10 +41,16 @@ export function useConversations({
               .map(w => w[0])
               .join("")
               .toUpperCase(),
-            lastMessage: "",
-            lastTime: "",
+            lastMessage: lastMsg?.content || "",
+            lastTime: lastMsg
+    ? new Date(lastMsg.createdAt).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "",
             unread: item.unreadCount,
             lastReadAt: item.lastReadAt,
+            updatedAt: conv.updatedAt,
           };
         })
       );
@@ -51,6 +58,14 @@ export function useConversations({
 
     loadConversations();
   }, [currentUserId, apiVersion]);
+
+  const sortedConversations = useMemo(() => {
+    return [...conversations].sort((a, b) => {
+      const ta = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const tb = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      return tb - ta;
+    });
+  }, [conversations]);
 
   /* ================================
      Mark conversation as read
@@ -76,7 +91,7 @@ export function useConversations({
   }
 
   return {
-    conversations,
+    conversations: sortedConversations,
     setConversations,
     unreadBoundary,
     setUnreadBoundary,
