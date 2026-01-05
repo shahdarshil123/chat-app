@@ -139,4 +139,10 @@ export async function getConversationMembers(conversationId) {
     });
 }
 
+export async function updateConversationUpdateAt(conversationId){
+    return await prisma.conversation.update({
+            where: {conversationId: conversationId},
+            data: {updatedAt: new Date()},
+        });
+}
 
