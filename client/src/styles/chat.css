@@ -286,6 +286,9 @@ body,
 /* ================================
    Input Bar
 ================================ */
+/* ===============================
+   Input Bar Layout
+================================ */
 .input-bar {
   display: flex;
   align-items: center;
@@ -295,19 +298,77 @@ body,
   border-top: 1px solid var(--border);
 }
 
-.input-bar input {
-  flex: 1;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: #f9fafb;
-  color: var(--text-main);
+/* ===============================
+   Input Wrapper (overlay container)
+   MUST NOT affect layout
+================================ */
+.input-wrapper {
+  position: relative;
+  flex: 1;              /* input takes remaining space */
 }
 
-.input-bar input::placeholder {
+/* ===============================
+   Real Input (source of truth)
+================================ */
+.input-wrapper input {
+  width: 100%;
+  height: 40px;
+  padding: 10px 12px;
+
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 20px;
+
+  border-radius: 10px;
+  border: 1px solid var(--border);
+
+  background: #f9fafb;
+  color: var(--text-main);
+
+  position: relative;
+  z-index: 1;
+}
+
+/* Placeholder */
+.input-wrapper input::placeholder {
   color: var(--text-muted);
 }
 
+/* ===============================
+   Ghost Overlay (mirrors input)
+================================ */
+.ghost-input {
+  position: absolute;
+  inset: 0;             /* top:0 right:0 bottom:0 left:0 */
+  z-index: 2;
+
+  pointer-events: none;
+  overflow: hidden;
+  white-space: nowrap;
+
+  display: flex;
+  align-items: center;
+
+  padding: 10px 12px;
+
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+/* Typed part: invisible but reserves width */
+.ghost-input .typed {
+  color: transparent;
+}
+
+/* Suggested continuation */
+.ghost-input .ghost {
+  color: #9ca3af;
+}
+
+/* ===============================
+   Send Button
+================================ */
 .input-bar button {
   padding: 10px 16px;
   border-radius: 10px;
