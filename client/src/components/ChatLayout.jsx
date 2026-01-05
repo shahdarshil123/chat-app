@@ -5,13 +5,13 @@ import MessageFeed from "./MessageFeed.jsx";
 import MessageInput from "./MessageInput.jsx";
 
 import { fetchMessages } from "../api/messages.js";
-import { connectSocket} from "../socket.js";
+import { connectSocket } from "../socket.js";
 import { addToOutbox, getOutboxMessages, removeFromOutbox } from "../db/outbox.js";
 
 import { MESSAGE_API_VERSION_ENUM, AUTH_API_VERSION_ENUM, USER_API_VERSION_ENUM, CONVERSATION_API_VERSION_ENUM } from "../constants/apiVersions.js";
 import { MESSAGE_API_VERSION, CONVERSATION_API_VERSION, AUTH_API_VERSION, USER_API_VERSION } from "../config.js";
 
-import {useMessages} from "../hooks/useMessages.js";
+import { useMessages } from "../hooks/useMessages.js";
 import { useChatSocket } from "../hooks/useChatSocket.js";
 import { useOutbox } from "../hooks/useOutbox.js";
 import { useConversations } from "../hooks/useConversations.js";
@@ -19,7 +19,8 @@ import { useConversations } from "../hooks/useConversations.js";
 /* ================================
    Chat Layout
 ================================ */
-export default function ChatLayout({ currentUser, onLogout }) {;
+export default function ChatLayout({ currentUser, onLogout }) {
+  ;
   console.log("Message API version:", MESSAGE_API_VERSION);
   const CURRENT_USER_ID = currentUser.id;
 
@@ -38,9 +39,9 @@ export default function ChatLayout({ currentUser, onLogout }) {;
 
 
 
-   /* ================================
-     Helpers
-  ================================ */
+  /* ================================
+    Helpers
+ ================================ */
   function mapMessage(m) {
     return {
       id: m.id,
@@ -56,17 +57,17 @@ export default function ChatLayout({ currentUser, onLogout }) {;
   }
 
   const {
-  conversations,
-  setConversations,
-  unreadBoundary,
-  setUnreadBoundary,
-  markAsRead,
-} = useConversations({
-  currentUserId: CURRENT_USER_ID,
-  apiVersion: CONVERSATION_API_VERSION,
-});
+    conversations,
+    setConversations,
+    unreadBoundary,
+    setUnreadBoundary,
+    markAsRead,
+  } = useConversations({
+    currentUserId: CURRENT_USER_ID,
+    apiVersion: CONVERSATION_API_VERSION,
+  });
 
-   const {
+  const {
     messages,
     pagination,
     loadInitialMessages,
@@ -101,9 +102,9 @@ export default function ChatLayout({ currentUser, onLogout }) {;
     return res;
   }
 
-   /* =====================================
-     Outbox (online-first)
-  ===================================== */
+  /* =====================================
+    Outbox (online-first)
+ ===================================== */
   const { queueMessage, flushOutbox } = useOutbox({
     sendMessagePayload,
     onMessageSent: msg => {
@@ -116,11 +117,11 @@ export default function ChatLayout({ currentUser, onLogout }) {;
     },
   });
 
-/* =====================================
-     Socket
-  ===================================== */
+  /* =====================================
+       Socket
+    ===================================== */
 
-    const socket = useMemo(
+  const socket = useMemo(
     () => (CURRENT_USER_ID ? connectSocket(CURRENT_USER_ID) : null),
     [CURRENT_USER_ID]
   );
@@ -132,16 +133,16 @@ export default function ChatLayout({ currentUser, onLogout }) {;
     }
   }, [flushOutbox, activeId, fetchMissedMessages]);
 
-useChatSocket({
-  socket,
-  activeId,
-  currentUserId: CURRENT_USER_ID,
-  setMessages,
-  setConversations,
-  setOnlineUsers,
-  mapMessage,
-  onReconnect: handleReconnect,
-});
+  useChatSocket({
+    socket,
+    activeId,
+    currentUserId: CURRENT_USER_ID,
+    setMessages,
+    setConversations,
+    setOnlineUsers,
+    mapMessage,
+    onReconnect: handleReconnect,
+  });
 
 
   /* ================================
@@ -183,9 +184,9 @@ useChatSocket({
           lastMessage: lastMsg?.content || "",
           lastTime: lastMsg
             ? new Date(lastMsg.createdAt).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
+              hour: "2-digit",
+              minute: "2-digit",
+            })
             : "",
           unread: item.unreadCount,
           lastReadAt: item.lastReadAt, // backend read timestamp
@@ -253,7 +254,7 @@ useChatSocket({
       return tb - ta;
     });
   }, [conversations]);
-  
+
   let activeConversation = useMemo(
     () => conversations.find(c => c.id === activeId),
     [conversations, activeId]
@@ -290,53 +291,40 @@ useChatSocket({
 
 
   function enqueueSend(task) {
-  sendingRef.current = sendingRef.current
-    .then(task)
-    .catch(() => {}); // prevent chain break
+    sendingRef.current = sendingRef.current
+      .then(task)
+      .catch(() => { }); // prevent chain break
 
-  return sendingRef.current;
+    return sendingRef.current;
   }
 
-async function sendMessage(text) {
-  if (!text.trim() || !activeId) return;
+  async function sendMessage(text) {
+    if (!text.trim() || !activeId) return;
 
-  // ---------- 1️⃣ Create optimistic message ----------
-  const now = Date.now();
-  const time = new Date(now).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+    // ----------  Create optimistic message ----------
+    const now = Date.now();
+    const time = new Date(now).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
-  const tempMessage = {
-    id: crypto.randomUUID(),
-    conversationId: activeId,
-    text,
-    createdAt: now,
-    time,               // ✅ ALWAYS present
-    fromSelf: true,
-    status: "pending",  // pending | sent
-  };
+    const tempMessage = {
+      id: crypto.randomUUID(),
+      conversationId: activeId,
+      text,
+      createdAt: now,
+      time,               // ✅ ALWAYS present
+      fromSelf: true,
+      status: "pending",  // pending | sent
+    };
 
-  // ---------- 2️⃣ Optimistic chat update ----------
-  setMessages(prev => ({
-    ...prev,
-    [activeId]: [...(prev[activeId] || []), tempMessage],
-  }));
+    // ----------  Optimistic chat update ----------
+    setMessages(prev => ({
+      ...prev,
+      [activeId]: [...(prev[activeId] || []), tempMessage],
+    }));
 
-  // ---------- 3️⃣ Optimistic SIDEBAR update ----------
-  // setConversations(prev =>
-  //   prev.map(c =>
-  //     c.id === activeId
-  //       ? {
-  //           ...c,
-  //           lastMessage: text,
-  //           lastTime: time,
-  //           unread: 0,
-  //         }
-  //       : c
-  //   )
-  // );
-  setConversations(prev => {
+    setConversations(prev => {
       const convo = prev.find(c => c.id === activeId);
       if (!convo) return prev;
 
@@ -352,72 +340,50 @@ async function sendMessage(text) {
         updated,
         ...prev.filter(c => c.id !== activeId),
       ];
-    });
-  // ---------- 4️⃣ Store ONCE in IndexedDB ----------
-  // await addToOutbox({
-  //   id: tempMessage.id,
-  //   conversationId: activeId,
-  //   content: text,
-  //   createdAt: now,
-  // });
+    });;
 
-  try {
-    // ---------- 5️⃣ Try sending to server ----------
-   const res = await sendMessagePayload({
-      conversationId: activeId,
-      content: text,
-    });
+    try {
+      // ----------  Try sending to server ----------
+      const res = await sendMessagePayload({
+        conversationId: activeId,
+        content: text,
+      });
 
-if (!res.ok) throw new Error("Send failed");
+      if (!res.ok) throw new Error("Send failed");
 
-    const saved = await res.json();
+      const saved = await res.json();
 
-    const serverTime = saved.createdAt
-      ? new Date(saved.createdAt).toLocaleTimeString([], {
+      const serverTime = saved.createdAt
+        ? new Date(saved.createdAt).toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
         })
-      : time;
+        : time;
 
-    // ---------- 6️⃣ Update SAME message → sent ----------
-    setMessages(prev => ({
-      ...prev,
-      [activeId]: prev[activeId].map(m =>
-        m.id === tempMessage.id
-          ? { ...m, status: "sent", time: serverTime }
-          : m
-      ),
-    }));
+      // ---------- 6️⃣ Update SAME message → sent ----------
+      setMessages(prev => ({
+        ...prev,
+        [activeId]: prev[activeId].map(m =>
+          m.id === tempMessage.id
+            ? { ...m, status: "sent", time: serverTime }
+            : m
+        ),
+      }));
 
-    // ---------- 7️⃣ Remove from IndexedDB ----------
-    //await removeFromOutbox(tempMessage.id);
-  } catch {
-    await queueMessage({
-      id: tempMessage.id,
-      conversationId: activeId,
-      content: text,
-      createdAt: now,
-    });
+      // ---------- 7️⃣ Remove from IndexedDB ----------
+      //await removeFromOutbox(tempMessage.id);
+    } catch {
+      await queueMessage({
+        id: tempMessage.id,
+        conversationId: activeId,
+        content: text,
+        createdAt: now,
+      });
+    }
   }
-}
-
-
-
-  // function dedupeMessages(list) {
-  //   const unique = Array.from(new Map(list.map(m => [m.id, m])).values());
-
-  //   // Sort by creation time so temporary ids don't break ordering
-  //   unique.sort((a, b) => {
-  //     const ta = new Date(a.createdAt).getTime();
-  //     const tb = new Date(b.createdAt).getTime();
-  //     return ta - tb;
-  //   });
-
-  //   return unique;
-  // }
 
   /* ================================
-     Render
+              Render
   ================================ */
   return (
     <div className="chat-app">
@@ -455,7 +421,7 @@ if (!res.ok) throw new Error("Send failed");
           messages={activeMessages}
           unreadStartId={unreadStartId}
           activeId={activeId}
-          onLoadOlder ={loadOlderMessages}
+          onLoadOlder={loadOlderMessages}
         />
 
         <MessageInput onSend={sendMessage} />

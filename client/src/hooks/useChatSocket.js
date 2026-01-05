@@ -30,18 +30,6 @@ export function useChatSocket({
         ],
       }));
 
-      // setConversations(prev =>
-      //   prev.map(c =>
-      //     c.id === String(msg.conversationId)
-      //       ? {
-      //           ...c,
-      //           lastMessage: msg.content,
-      //           unread:
-      //             c.id === activeId ? 0 : (c.unread || 0) + 1,
-      //         }
-      //       : c
-      //   )
-      // );
 
       setConversations(prev => {
         const existing = prev.find(c => c.id === convoId);

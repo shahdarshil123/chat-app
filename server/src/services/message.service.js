@@ -4,7 +4,7 @@ import { io, getUserSocketIds } from '../sockets.js';
 
 export async function sendMessageService(conversationId, senderId, content) {
 
-    
+
     // Save to db
     const message = await saveMessage({
         conversationId,
@@ -49,32 +49,46 @@ export async function sendMessageService(conversationId, senderId, content) {
     return message;
 };
 
+async function getMessagesCore({
+    conversationId,
+    limit,
+    before,
+    after,
+    mode, // "full" | "paginated"
+}) {
+    if (!conversationId) return;
+
+    if (mode === "full") {
+        return getMessages(conversationId);
+    }
+
+    const safeLimit = Math.min(Number(limit) || 20, 50);
+    return getMessagesV2({
+        conversationId,
+        limit: safeLimit,
+        before,
+        after,
+    });
+}
 
 export async function getMessageServiceV1(conversationId) {
-    if (!conversationId || conversationId === undefined) {
-        return;
-    }
-    const messages = await getMessages(conversationId);
-
-    if (!messages) {
-        return;
-    }
-    return messages;
-};
+    return getMessagesCore({
+        conversationId,
+        mode: "full",
+    });
+}
 
 export async function getMessageServiceV2(
     conversationId,
     limit = 20,
     before = null,
-    after = null,
+    after = null
 ) {
-
-    const safeLimit = Math.min(Number(limit) || 20, 50);
-    const messages = await getMessagesV2({ conversationId, limit:safeLimit, before, after });
-    
-    if (!messages) {
-        return;
-    }
-
-    return messages;
+    return getMessagesCore({
+        conversationId,
+        limit,
+        before,
+        after,
+        mode: "paginated",
+    });
 }
