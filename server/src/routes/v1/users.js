@@ -1,28 +1,13 @@
 import express from 'express';
-import { checkUserExistsByEmail, checkUserExistsByUsername, createUser, getUserById, updateUserLastSeen, getLastSeen} from '../../db/users.js';
 import { requireAuth } from '../../middleware/requireAuth.js';
+import { createUserService, getLastSeenService, getUserByIdService, updateUserLastSeenService } from '../../services/user.service.js';
 
 const router = express.Router();
-
-router.get("/", requireAuth, (req, res) => {
-    try {
-        const { q } = req.query;
-
-        if (!q || q.trim().length === 0) {
-            return res.status(400).json({ error: 'Search query required' });
-        }
-    }
-    catch (error) {
-        console.error("Search users error:", error);
-        res.status(500).json({ error: 'Search failed' });
-    }
-});
-
 
 router.get('/:id', requireAuth, async (req, res) => {
     try {
         const userId = parseInt(req.params.id);
-        const user = await getUserById(userId);
+        const user = await getUserByIdService(userId);
         if (!user) {
             return res.status(404).json({
                 error: 'User not found'
@@ -57,27 +42,13 @@ router.post("/create", requireAuth, async (req, res) => {
             console.log("Invalid Display Name");
             return res.status(400).json({ error: "Invalid Display Name" });
         }
-
-        const emailCheck = await checkUserExistsByEmail(email);
-
-        if (emailCheck) {
-            console.log("User with same email already exists");
-            return res.status(400).json({ error: `User with email:${email} already exists` });
-        }
-
-        const usernameCheck = await checkUserExistsByUsername(username);
-
-        if (usernameCheck) {
-            console.log(`User with username:${username} already exists`);
-            return res.status(400).json({ error: `User with username:${username} already exists` });
-        }
-
-        const data = {
-            username, email, password, displayName
-        };
-
-        const user = await createUser(data);
+        
+        const user = await createUserService(username, email, password, displayName);
         console.log(user);
+        if(!user){
+            res.status(500).json({ error: 'Failed to create the user' });
+        }
+        
         res.json({ user });
     }
     catch (error) {
@@ -94,7 +65,11 @@ router.post("/:id/last-seen", requireAuth, async (req, res) => {
             return res.status(400).json({ error: "userId is required" });
         }
 
-        const updated = await updateUserLastSeen(userId);
+        const updated = await updateUserLastSeenService(userId);
+
+        if(!updated){
+            res.status(500).json({ error: 'Failed to create the user' });
+        }
 
         res.json(updated);
     } catch (error) {
@@ -107,7 +82,7 @@ router.get("/:id/last-seen", requireAuth, async (req, res) => {
     try {
         const userId  = parseInt(req.params.id);
 
-        const user = await getLastSeen(userId);
+        const user = await getLastSeenService(userId);
 
         if (!user) {
             return res.status(404).json({ error: "User not found" });
