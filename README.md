@@ -1,6 +1,7 @@
 # Real-Time Chat Messaging Application
 
-A full-stack, real-time chat application designed with **reliability, offline support, and scalability** in mind.  
+A full-stack, real-time chat application designed with **reliability, offline support, scalability, and clean API layering** in mind.
+
 This document includes a **navigable table of contents** for easier understanding of the architecture and implementation.
 
 ---
@@ -213,8 +214,25 @@ docker compose exec server npx prisma migrate deploy
 docker compose exec server npx prisma db seed
 docker compose exec server npx prisma studio --port 5555
 docker compose down -v
-```
 
+or
+
+docker network create chat-net
+docker network ls
+
+docker run -d --name postgres --network chat-net -e POSTGRES_USER=chat_user -e POSTGRES_PASSWORD=chat_pass -e POSTGRES_DB=chat_app postgres:15
+
+docker run -d --name chat_redis --network chat-net redis:7
+
+docker run -d --name chat-server --network chat-net -p 4000:4000 -e DATABASE_URL=postgresql://chat_user:chat_pass@postgres:5432/chat_app -e REDIS_URL=redis://chat_redis:6379 darshilshah0208/chat-app-server:<version>
+
+docker run -d --name chat-client --network chat-net -p 5173:5173 -e VITE_API_URL=http://chat-server:4000 darshilshah0208/chat-app-client:<version>
+
+docker exec -it chat-server npx prisma migrate deploy
+
+docker exec -it chat-server npx prisma db seed
+
+```
 ---
 
 ##  Core Docker Compose Commands
