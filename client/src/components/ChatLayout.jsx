@@ -424,7 +424,10 @@ export default function ChatLayout({ currentUser, onLogout }) {
           onLoadOlder={loadOlderMessages}
         />
 
-        <MessageInput onSend={sendMessage} />
+        <MessageInput 
+        onSend={sendMessage}
+        conversation={activeMessages.slice(-3).map(m => m.text)}
+        />
       </section>
     </div>
   );

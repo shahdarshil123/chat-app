@@ -13,7 +13,9 @@ router.post("/auto-suggest", async (req, res) => {
     const service = new AIService(
         new AutoSuggestStrategy(llm)
     );
-    res.json(await service.generate(req.body) || {});
+    const response = await service.generate(req.body) || {};
+    console.log(response);
+    res.json(response);
 });
 
 router.post("/quick-replies", async (req, res) => {
