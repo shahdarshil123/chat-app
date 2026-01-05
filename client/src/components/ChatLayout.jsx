@@ -1,155 +1,148 @@
-import { useEffect, useMemo, useState, useRef } from "react";
-import ConversationList from "./ConversationList";
-import ConversationHeader from "./ConversationHeader";
-import MessageFeed from "./MessageFeed";
-import MessageInput from "./MessageInput";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import ConversationList from "./ConversationList.jsx";
+import ConversationHeader from "./ConversationHeader.jsx";
+import MessageFeed from "./MessageFeed.jsx";
+import MessageInput from "./MessageInput.jsx";
 
-import { connectSocket, disconnectSocket } from "../socket";
-import { preconnect } from "react-dom";
-import { addToOutbox, getOutboxMessages, removeFromOutbox } from "../db/outbox";
+import { fetchMessages } from "../api/messages.js";
+import { connectSocket } from "../socket.js";
+import { addToOutbox, getOutboxMessages, removeFromOutbox } from "../db/outbox.js";
 
+import { MESSAGE_API_VERSION_ENUM, AUTH_API_VERSION_ENUM, USER_API_VERSION_ENUM, CONVERSATION_API_VERSION_ENUM } from "../constants/apiVersions.js";
+import { MESSAGE_API_VERSION, CONVERSATION_API_VERSION, AUTH_API_VERSION, USER_API_VERSION } from "../config.js";
 
-/* ================================
-   Temporary Logged-in User
-================================ */
-// const CURRENT_USER_ID = 2;
+import { useMessages } from "../hooks/useMessages.js";
+import { useChatSocket } from "../hooks/useChatSocket.js";
+import { useOutbox } from "../hooks/useOutbox.js";
+import { useConversations } from "../hooks/useConversations.js";
 
 /* ================================
    Chat Layout
 ================================ */
 export default function ChatLayout({ currentUser, onLogout }) {
+  ;
+  console.log("Message API version:", MESSAGE_API_VERSION);
+  const CURRENT_USER_ID = currentUser.id;
 
+  // const chatContainerRef = useRef(null);
   const flushingRef = useRef(false);
   const sendingRef = useRef(Promise.resolve());
 
-  const CURRENT_USER_ID = currentUser.id;
-
-  const [conversations, setConversations] = useState([]);
-  const [messages, setMessages] = useState({});
+  // const [conversations, setConversations] = useState([]);
+  // const [messages, setMessages] = useState({});
+  // const [pagination, setPagination] = useState({});
   const [activeId, setActiveId] = useState(null); // Active conversation id
   const [search, setSearch] = useState("");
-  const [unreadBoundary, setUnreadBoundary] = useState({});
-  // const [activeConversation, setActiveConversation]= useState("");
+  // const [unreadBoundary, setUnreadBoundary] = useState({});
 
   const [onlineUsers, setOnlineUsers] = useState(new Set());
+
+
+
+  /* ================================
+    Helpers
+ ================================ */
+  function mapMessage(m) {
+    return {
+      id: m.id,
+      fromSelf: m.senderId === CURRENT_USER_ID,
+      text: m.content,
+      createdAt: m.createdAt,
+      time: new Date(m.createdAt).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      status: m.senderId === CURRENT_USER_ID ? "sent" : undefined,
+    };
+  }
+
+  const {
+    conversations,
+    setConversations,
+    unreadBoundary,
+    setUnreadBoundary,
+    markAsRead,
+  } = useConversations({
+    currentUserId: CURRENT_USER_ID,
+    apiVersion: CONVERSATION_API_VERSION,
+  });
+
+  const {
+    messages,
+    pagination,
+    loadInitialMessages,
+    loadOlderMessages,
+    fetchMissedMessages,
+    setMessages,
+  } = useMessages({
+    activeId,
+    apiVersion: MESSAGE_API_VERSION,
+    fetchMessages,
+    mapMessage,
+  });
+
+  async function sendMessagePayload({ conversationId, content }) {
+    console.log("➡️ Sending to server:", {
+      conversationId,
+      content,
+    });
+
+    const res = await fetch(
+      `http://localhost:4000/api/${MESSAGE_API_VERSION}/message/${conversationId}/messages`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId, content }),
+      }
+    );
+
+    console.log("⬅️ Server response status:", res.status);
+
+    return res;
+  }
+
+  /* =====================================
+    Outbox (online-first)
+ ===================================== */
+  const { queueMessage, flushOutbox } = useOutbox({
+    sendMessagePayload,
+    onMessageSent: msg => {
+      setMessages(prev => ({
+        ...prev,
+        [msg.conversationId]: prev[msg.conversationId].map(m =>
+          m.id === msg.id ? { ...m, status: "sent" } : m
+        ),
+      }));
+    },
+  });
+
+  /* =====================================
+       Socket
+    ===================================== */
 
   const socket = useMemo(
     () => (CURRENT_USER_ID ? connectSocket(CURRENT_USER_ID) : null),
     [CURRENT_USER_ID]
   );
 
-  //   useEffect(() => {
-  //   flushOutbox();
-  // }, []);
-
-  const handleMessage = (msg) => {
-    // ❌ Ignore messages sent by myself
-    if (msg.senderId === CURRENT_USER_ID) return;
-
-    setMessages(prev => {
-      const cid = String(msg.conversationId);
-      const existing = prev[cid] || [];
-
-      if (existing.some(m => m.id === msg.id)) return prev;
-
-      return {
-        ...prev,
-        [cid]: [...existing, {
-          id: msg.id,
-          fromSelf: false,
-          text: msg.content,
-          createdAt: msg.createdAt,
-          time: new Date(msg.createdAt).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        }],
-      };
-    });
-
-    // update sidebar preview
-    setConversations(prev =>
-      prev.map(c =>
-        c.id === String(msg.conversationId)
-          ? {
-            ...c,
-            lastMessage: msg.content,
-            lastTime: new Date(msg.createdAt).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            unread:
-              c.id === activeId ? 0 : (c.unread || 0) + 1,
-          }
-          : c
-      )
-    );
-  }
-
-  async function flushOutbox() {
-  if (flushingRef.current) return;
-  flushingRef.current = true;
-
-  try {
-    const queued = (await getOutboxMessages())
-      .sort((a, b) => a.createdAt - b.createdAt);
-
-    for (const msg of queued) {
-      const res = await enqueueSend(async () => {
-         return await sendMessagePayload({
-          conversationId: msg.conversationId,
-          content: msg.content,
-        });
-      });
-
-        if (res.ok) {
-          await removeFromOutbox(msg.id);
-
-          setMessages(prev => ({
-            ...prev,
-            [msg.conversationId]: prev[msg.conversationId].map(m =>
-              m.id === msg.id ? { ...m, status: "sent" } : m
-            ),
-          }));
-        }
+  const handleReconnect = useCallback(async () => {
+    await flushOutbox();
+    if (activeId) {
+      fetchMissedMessages(activeId);
     }
-  } finally {
-    flushingRef.current = false;
-  }
-}
+  }, [flushOutbox, activeId, fetchMissedMessages]);
 
-
-  const handleOnline = (users) => {
-    console.log("users:online received:", users);
-    setOnlineUsers(new Set(users));
-  }
-
-  useEffect(() => {
-    if (!socket) return;
-
-    const onConnect = () => {
-      console.log("Socket reconnected → flushing outbox");
-      flushOutbox();
-
-    loadMessages();
-
-    }
-
-    socket.on("users:online", handleOnline);
-
-    socket.on("message:new", handleMessage);
-
-    socket.on("connect", onConnect);
-    // window.addEventListener("online", flushOutbox);
-
-    return () => {
-      socket.off("users:online", handleOnline);
-      socket.off("message:new", handleMessage);
-      socket.off("connect", onConnect);
-    }
-
-  }, [socket]);
-
+  useChatSocket({
+    socket,
+    activeId,
+    currentUserId: CURRENT_USER_ID,
+    setMessages,
+    setConversations,
+    setOnlineUsers,
+    mapMessage,
+    onReconnect: handleReconnect,
+  });
 
 
   /* ================================
@@ -158,13 +151,14 @@ export default function ChatLayout({ currentUser, onLogout }) {
   useEffect(() => {
     async function loadConversations() {
       const res = await fetch(
-        `http://localhost:4000/api/conversation/${CURRENT_USER_ID}`, { credentials: "include" }
+        `http://localhost:4000/api/${CONVERSATION_API_VERSION}/conversation/${CURRENT_USER_ID}`, { credentials: "include" }
       );
       const json = await res.json();
       console.log(json);
 
       const mapped = json.conversations.map(item => {
         const conv = item.conversation;
+        const lastMsg = item.lastMessage;
 
         // Determine title
         let title = conv.name;
@@ -187,10 +181,16 @@ export default function ChatLayout({ currentUser, onLogout }) {
             .map(w => w[0])
             .join("")
             .toUpperCase(),
-          lastMessage: "",
-          lastTime: "",
+          lastMessage: lastMsg?.content || "",
+          lastTime: lastMsg
+            ? new Date(lastMsg.createdAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+            : "",
           unread: item.unreadCount,
           lastReadAt: item.lastReadAt, // backend read timestamp
+          updatedAt: conv.updatedAt,
         };
       });
 
@@ -202,48 +202,9 @@ export default function ChatLayout({ currentUser, onLogout }) {
     }
 
     loadConversations();
-  }, []);
+  }, [CURRENT_USER_ID, setConversations]);
 
 
-
-  /* ================================
-     Load Messages (per conversation)
-  ================================ */
-
-  async function loadMessages() {
-      const res = await fetch(
-        `http://localhost:4000/api/message/${activeId}/messages`, { credentials: "include" }
-      );
-      const json = await res.json();
-
-      const mapped = json.messages.map(m => ({
-        id: m.id,
-        fromSelf: m.senderId === CURRENT_USER_ID,
-        text: m.content,
-        time: new Date(m.createdAt).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        status: m.senderId === CURRENT_USER_ID ? "delivered" : undefined,
-        createdAt: m.createdAt,
-        sender: {
-          id: m.sender.id,
-          name: m.sender.displayName,
-          avatar: m.sender.avatarUrl,
-        },
-      }));
-
-      // 🔑 REPLACE messages for this conversation
-      setMessages(prev => ({
-        ...prev,
-        [activeId]: mapped,
-      }));
-    }
-
-  useEffect(() => {
-    if (!activeId) return;
-    loadMessages();
-  }, [activeId]);
 
   useEffect(() => {
     if (!activeId) return;
@@ -261,7 +222,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
       );
 
       await fetch(
-        `http://localhost:4000/api/conversation/${activeId}/read`,
+        `http://localhost:4000/api/${CONVERSATION_API_VERSION}/conversation/${activeId}/read`,
         { method: "POST", credentials: "include" }
       );
     }, 300); // small delay ensures render completed
@@ -269,13 +230,37 @@ export default function ChatLayout({ currentUser, onLogout }) {
     return () => clearTimeout(timeout);
   }, [activeId]);
 
+
+
+  async function selectConversation(id) {
+    setActiveId(id);
+    await loadInitialMessages(id);
+
+    const convo = conversations.find(c => c.id === id);
+    if (convo?.lastReadAt) {
+      setUnreadBoundary(prev => ({ ...prev, [id]: convo.lastReadAt }));
+    }
+
+    await markAsRead(id);
+  }
+
   /* ================================
      Derived State
   ================================ */
+  const sortedConversations = useMemo(() => {
+    return [...conversations].sort((a, b) => {
+      const ta = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const tb = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      return tb - ta;
+    });
+  }, [conversations]);
+
   let activeConversation = useMemo(
     () => conversations.find(c => c.id === activeId),
     [conversations, activeId]
   );
+
+  const activeMessages = messages[activeId] || [];
 
   const filteredConversations = useMemo(() => {
     if (!search.trim()) return conversations;
@@ -284,7 +269,6 @@ export default function ChatLayout({ currentUser, onLogout }) {
     );
   }, [search, conversations]);
 
-  const activeMessages = messages[activeId] || [];
 
   /* ================================
      Unread Divider Logic
@@ -304,189 +288,102 @@ export default function ChatLayout({ currentUser, onLogout }) {
   }, [activeId, activeMessages, unreadBoundary]);
 
 
-  /* ================================
-     Actions
-  ================================ */
-  async function selectConversation(id) {
-    setActiveId(id);
 
-    const convo = conversations.find(c => c.id === id);
-    if (convo?.lastReadAt) {
-      setUnreadBoundary(prev => ({
-        ...prev,
-        [id]: convo.lastReadAt, // 🔒 freeze boundary
-      }));
-    }
-
-    // Optimistically mark conversation as read in UI
-    const now = new Date().toISOString();
-    setConversations(prev =>
-      prev.map(c =>
-        c.id === id
-          ? {
-            ...c,
-            unread: 0,
-            // lastReadAt: now,
-          }
-          : c
-      )
-    );
-
-    const res = await fetch(
-      `http://localhost:4000/api/conversation/${activeId}/read`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        // body: JSON.stringify({
-        //   conversationId: activeId,
-        //   userId: CURRENT_USER_ID,
-        // }),
-      }
-    );
-
-    const message = await res.json();
-
-    console.log(message);
-
-  }
-
-  async function sendMessagePayload({ conversationId, content }) {
-    console.log("➡️ Sending to server:", {
-      conversationId,
-      content,
-    });
-
-    const res = await fetch(
-      `http://localhost:4000/api/message/${conversationId}/messages`,
-      {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId, content }),
-      }
-    );
-
-    console.log("⬅️ Server response status:", res.status);
-
-    return res;
-  }
 
   function enqueueSend(task) {
-  sendingRef.current = sendingRef.current
-    .then(task)
-    .catch(() => {}); // prevent chain break
+    sendingRef.current = sendingRef.current
+      .then(task)
+      .catch(() => { }); // prevent chain break
 
-  return sendingRef.current;
+    return sendingRef.current;
   }
 
-async function sendMessage(text) {
-  if (!text.trim() || !activeId) return;
+  async function sendMessage(text) {
+    if (!text.trim() || !activeId) return;
 
-  // ---------- 1️⃣ Create optimistic message ----------
-  const now = Date.now();
-  const time = new Date(now).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+    // ----------  Create optimistic message ----------
+    const now = Date.now();
+    const time = new Date(now).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
-  const tempMessage = {
-    id: crypto.randomUUID(),
-    conversationId: activeId,
-    text,
-    createdAt: now,
-    time,               // ✅ ALWAYS present
-    fromSelf: true,
-    status: "pending",  // pending | sent
-  };
+    const tempMessage = {
+      id: crypto.randomUUID(),
+      conversationId: activeId,
+      text,
+      createdAt: now,
+      time,               // ✅ ALWAYS present
+      fromSelf: true,
+      status: "pending",  // pending | sent
+    };
 
-  // ---------- 2️⃣ Optimistic chat update ----------
-  setMessages(prev => ({
-    ...prev,
-    [activeId]: [...(prev[activeId] || []), tempMessage],
-  }));
+    // ----------  Optimistic chat update ----------
+    setMessages(prev => ({
+      ...prev,
+      [activeId]: [...(prev[activeId] || []), tempMessage],
+    }));
 
-  // ---------- 3️⃣ Optimistic SIDEBAR update ----------
-  setConversations(prev =>
-    prev.map(c =>
-      c.id === activeId
-        ? {
-            ...c,
-            lastMessage: text,
-            lastTime: time,
-            unread: 0,
-          }
-        : c
-    )
-  );
+    setConversations(prev => {
+      const convo = prev.find(c => c.id === activeId);
+      if (!convo) return prev;
 
-  // ---------- 4️⃣ Store ONCE in IndexedDB ----------
-  await addToOutbox({
-    id: tempMessage.id,
-    conversationId: activeId,
-    content: text,
-    createdAt: now,
-  });
+      const updated = {
+        ...convo,
+        lastMessage: text,
+        lastTime: time,
+        unread: 0,
+        updatedAt: new Date(now).toISOString(),
+      };
 
-  try {
-    // ---------- 5️⃣ Try sending to server ----------
-    const res = await enqueueSend(async () => {
-  return await sendMessagePayload({
-    conversationId: activeId,
-    content: text,
-  });
-});
+      return [
+        updated,
+        ...prev.filter(c => c.id !== activeId),
+      ];
+    });;
 
-if (!res.ok) throw new Error("Send failed");
+    try {
+      // ----------  Try sending to server ----------
+      const res = await sendMessagePayload({
+        conversationId: activeId,
+        content: text,
+      });
 
-    const saved = await res.json();
+      if (!res.ok) throw new Error("Send failed");
 
-    const serverTime = saved.createdAt
-      ? new Date(saved.createdAt).toLocaleTimeString([], {
+      const saved = await res.json();
+
+      const serverTime = saved.createdAt
+        ? new Date(saved.createdAt).toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
         })
-      : time;
+        : time;
 
-    // ---------- 6️⃣ Update SAME message → sent ----------
-    setMessages(prev => ({
-      ...prev,
-      [activeId]: prev[activeId].map(m =>
-        m.id === tempMessage.id
-          ? { ...m, status: "sent", time: serverTime }
-          : m
-      ),
-    }));
+      // ---------- 6️⃣ Update SAME message → sent ----------
+      setMessages(prev => ({
+        ...prev,
+        [activeId]: prev[activeId].map(m =>
+          m.id === tempMessage.id
+            ? { ...m, status: "sent", time: serverTime }
+            : m
+        ),
+      }));
 
-    // ---------- 7️⃣ Remove from IndexedDB ----------
-    await removeFromOutbox(tempMessage.id);
-  } catch {
-    // ❌ DO NOTHING
-    // Message remains:
-    // - visible in UI
-    // - status = pending
-    // - stored in IndexedDB
-    // - will be sent by flushOutbox()
+      // ---------- 7️⃣ Remove from IndexedDB ----------
+      //await removeFromOutbox(tempMessage.id);
+    } catch {
+      await queueMessage({
+        id: tempMessage.id,
+        conversationId: activeId,
+        content: text,
+        createdAt: now,
+      });
+    }
   }
-}
-
-
-
-  // function dedupeMessages(list) {
-  //   const unique = Array.from(new Map(list.map(m => [m.id, m])).values());
-
-  //   // Sort by creation time so temporary ids don't break ordering
-  //   unique.sort((a, b) => {
-  //     const ta = new Date(a.createdAt).getTime();
-  //     const tb = new Date(b.createdAt).getTime();
-  //     return ta - tb;
-  //   });
-
-  //   return unique;
-  // }
 
   /* ================================
-     Render
+              Render
   ================================ */
   return (
     <div className="chat-app">
@@ -524,6 +421,7 @@ if (!res.ok) throw new Error("Send failed");
           messages={activeMessages}
           unreadStartId={unreadStartId}
           activeId={activeId}
+          onLoadOlder={loadOlderMessages}
         />
 
         <MessageInput onSend={sendMessage} />
