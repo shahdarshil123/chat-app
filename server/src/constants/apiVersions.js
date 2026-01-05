@@ -14,3 +14,8 @@ export const CONVERSATION_API_VERSION_ENUM = Object.freeze({
 export const AUTH_API_VERSION_ENUM = Object.freeze({
   V1: "v1",
 });
+
+
+export const AI_API_VERSION_ENUM = Object.freeze({
+  V1: "v1",
+});

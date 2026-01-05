@@ -8,16 +8,18 @@ import { registerSockets } from "./sockets.js";
 import connectRedis from "connect-redis";
 import redis from "./redis/redis.js";
 
-import { MESSAGE_API_VERSION_ENUM, AUTH_API_VERSION_ENUM, CONVERSATION_API_VERSION_ENUM, USER_API_VERSION_ENUM} from "./constants/apiVersions.js";
+import { MESSAGE_API_VERSION_ENUM, AUTH_API_VERSION_ENUM, CONVERSATION_API_VERSION_ENUM, USER_API_VERSION_ENUM, AI_API_VERSION_ENUM} from "./constants/apiVersions.js";
 import {DEFAULT_MESSAGE_API_VERSION} from "./config.js";
 
 //Import Routes
 import userRoutesV1 from "./routes/v1/users.js";
-import messageRoutesV1 from "./routes//v1/messages.js";
+import messageRoutesV1 from "./routes/v1/messages.js";
 import conversationRoutesV1 from "./routes//v1/conversations.js";
-import authRoutesV1 from "./routes//v1/auth.js";
+import authRoutesV1 from "./routes/v1/auth.js";
+import aiRouteV1 from "./routes/v1/ai.routes.js"
 
 import messageRoutesV2 from "./routes/v2/messages.js";
+
 
 
 
@@ -62,6 +64,7 @@ app.use(`/api/${USER_API_VERSION_ENUM.V1}/user`, userRoutesV1);
 app.use(`/api/${MESSAGE_API_VERSION_ENUM.V1}/message`, messageRoutesV1);
 app.use(`/api/${CONVERSATION_API_VERSION_ENUM.V1}/conversation`, conversationRoutesV1);
 app.use(`/api/${AUTH_API_VERSION_ENUM.V1}/auth`, authRoutesV1);
+app.use(`/api/${AI_API_VERSION_ENUM.V1}/ai`,aiRouteV1);
 
 //v2
 app.use(`/api/${MESSAGE_API_VERSION_ENUM.V2}/message`, messageRoutesV2);
