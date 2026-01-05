@@ -47,11 +47,27 @@ export async function getUserConversations(userId) {
                     },
                 },
             });
-
+            
+            const lastMessage = await prisma.message.findFirst({
+                where: {
+                    conversationId: m.conversationId,
+                },
+                orderBy:{
+                    createdAt: "desc",
+                },
+                select:{
+                    id: true,
+                    content: true,
+                    senderId: true,
+                    createdAt: true,
+                },
+            });
+    
             return {
                 ...m,
                 unreadCount,
                 lastReadAt: m.lastReadAt,
+                lastMessage,
             };
         })
     );

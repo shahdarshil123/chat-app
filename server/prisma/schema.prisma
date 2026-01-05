@@ -53,6 +53,9 @@ model Conversation {
   members  ConversationMember[]
   messages Message[]
 
+  lastMessageId Int? @unique @map("last_message_id")
+  lastMessage Message? @relation("LastMessage", fields: [lastMessageId], references: [id])
+
   @@index([updatedAt(sort: Desc)])
   @@index([createdBy])
   @@index([isGroup])
@@ -86,6 +89,8 @@ model Message {
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       User?        @relation("SentMessages", fields: [senderId], references: [id], onDelete: SetNull)
+
+  lastForConversation Conversation? @relation("LastMessage")
 
   @@index([conversationId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([senderId])
