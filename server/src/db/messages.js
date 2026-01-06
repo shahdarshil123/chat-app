@@ -80,6 +80,16 @@ export async function getMessagesV2({
             createdAt: "desc",
         },
         take: limit,
+        include: {
+            sender: {
+                select: {
+                    id: true,
+                    username: true,
+                    displayName: true,
+                    avatarUrl: true,
+                },
+            },
+        },
     });
 
     // Prisma returns newest → oldest, UI needs oldest → newest

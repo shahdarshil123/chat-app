@@ -48,6 +48,9 @@ export default function ChatLayout({ currentUser, onLogout }) {
       fromSelf: m.senderId === CURRENT_USER_ID,
       text: m.deleted || m.deletedAt ? "This message was deleted" : m.content,
       deleted: !!(m.deleted || m.deletedAt),
+      // keep original sender object and use its displayName (server should provide this)
+      sender: m.sender || null,
+      senderName: m.sender?.displayName || m.sender?.username || "",
       createdAt: m.createdAt,
       time: new Date(m.createdAt).toLocaleTimeString([], {
         hour: "2-digit",

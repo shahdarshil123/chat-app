@@ -279,6 +279,21 @@ body,
   color: rgba(0,0,0,0.6);
 }
 
+/* Sender name displayed above each message */
+.message .sender-name {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.message-row.self .message .sender-name {
+  text-align: right;
+}
+
+.message-row.other .message .sender-name {
+  text-align: left;
+}
+
 .delete-button-wrap {
   margin-right: 8px;
   display: inline-flex;

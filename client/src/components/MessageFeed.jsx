@@ -204,6 +204,7 @@ export default function MessageFeed({
                 const isDeleted = !!m.deleted;
                 return (
                   <>
+                    <div className="sender-name">{m.senderName || m.sender?.displayName || (m.fromSelf ? 'You' : '')}</div>
                     <span className={isDeleted ? "deleted" : ""}>
                       {m.text}
                     </span>
