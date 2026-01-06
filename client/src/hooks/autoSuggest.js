@@ -49,7 +49,7 @@ export function useAutoSuggest({ input, conversation, disabled, onSuggest }) {
           console.error("Auto-suggest failed", err);
         }
       }
-    }, 450); // 🔑 debounce
+    }, 300); // 🔑 debounce
 
     return () => {
       clearTimeout(timeout);
@@ -57,6 +57,6 @@ export function useAutoSuggest({ input, conversation, disabled, onSuggest }) {
     };
   }, [input, conversation, disabled]);
 
-  console.log(suggestion);
+  if (suggestion) console.log(suggestion);
   return suggestion;
 }

@@ -1,8 +1,9 @@
 import fetch from "node-fetch";
+import "dotenv/config";
 
 export class BaseLLM {
     constructor({
-        baseUrl = "http://127.0.0.1:11434",
+        baseUrl = process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434",
         model = "mistral"
     } = {}) {
         this.baseUrl = baseUrl;
@@ -23,8 +24,10 @@ export class BaseLLM {
                     prompt,
                     stream: false,
                     options: {
-                        num_predict: 30,     // 🔑 LIMIT TOKENS
-                        temperature: 0.3
+                        num_predict: 15,     // 🔑 LIMIT TOKENS
+                        temperature: 0.3,
+                        "top_p": 0.9,
+                        "repeat_penalty": 1.1
                     }
                 })
             });
