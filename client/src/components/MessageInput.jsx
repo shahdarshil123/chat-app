@@ -29,7 +29,8 @@ export default function MessageInput({ onSend, conversation = [] }) {
 
   function acceptSuggestion() {
     if (!suggestion) return;
-    setValue(value + suggestion);
+    setValue(prev => prev + suggestion);
+    setSuppressSuggest(true);
   }
 
   return (

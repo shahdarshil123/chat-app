@@ -344,7 +344,7 @@ body,
 
   pointer-events: none;
   overflow: hidden;
-  white-space: nowrap;
+  white-space: pre;
 
   display: flex;
   align-items: center;

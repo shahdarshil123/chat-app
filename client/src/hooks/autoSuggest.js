@@ -39,7 +39,7 @@ export function useAutoSuggest({ input, conversation, disabled, onSuggest }) {
 
         if (controller.signal.aborted) return;
 
-        const next = (res?.suggestion || "").trim();
+        const next = res?.suggestion || ""
         setSuggestion(next);
 
         if (next) onSuggest?.();

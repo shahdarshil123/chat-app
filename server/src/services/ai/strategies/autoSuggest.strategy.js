@@ -4,42 +4,70 @@ export class AutoSuggestStrategy {
     }
 
     isSentenceComplete(text) {
-        return /[.!?]\s*$/.test(text.trim());
-    }
-
-    looksIncomplete(text) {
-        const incompletePatterns = [
-            /\b(to|for|with|at|on)$/i,
-            /\b(will|should|can|could|let's|lets)$/i,
-            /\b(meet|call|send|do|check)$/i
-        ];
-
-        return incompletePatterns.some(p => p.test(text.trim()));
+        return /[.!?]\s*$/.test(text);
     }
 
     shouldInvokeLLM(input) {
-        console.log("check1");
         if (!input || input.length < 3) return false;
-
-        console.log("check2");
         if (this.isSentenceComplete(input)) return false;
 
-        // if (this.looksIncomplete(input)) return true;
-
-        // fallback: last word unfinished
-        const lastWord = input.split(" ").pop();
-        console.log(lastWord);
-        if (lastWord.length >= 3 && lastWord.length < 8) return true;
-
-        return false;
+        const lastWord = input.split(/\s+/).pop();
+        return lastWord.length >= 2;
     }
 
-    async generate({ input, conversation = [] }) {
-        if (!this.shouldInvokeLLM(input)) {
-            return { suggestion: "" };
-        }
+    /**
+     * STEP 1: Decide if a SPACE is needed
+     * (LLMs are very good at binary classification)
+     */
+    async needsSpace(input, suggestion) {
+        const prompt = `
+You are a word-boundary classifier.
 
+Decide whether the continuation should START A NEW WORD.
+Please understand the semantics of the word gramatically.
 
+Rules: 
+- Answer YES if a space is required before the continuation
+- Answer NO if the continuation continues the SAME word
+- Partial words → NO
+- Word completion → NO
+- New word → YES
+
+Examples:
+
+Input: "how are you doi"
+Continuation: "ng"
+Answer: NO
+
+Input: "how are you doing"
+Continuation: "today"
+Answer: YES
+
+Input: "how are you"
+Continuation: "doing"
+Answer: YES
+
+Answer ONLY with:
+YES or NO
+
+Input:
+"${input}"
+
+Continuation:
+"${suggestion}"
+
+Answer:
+`;
+
+        const res = await this.llm.complete(prompt);
+        console.log("LLM response: ", res);
+        return res?.[0] === "YES";
+    }
+
+    /**
+     * STEP 2: Generate continuation text (NO SPACES EVER)
+     */
+    async generateCompletion(input, conversation) {
         const prompt = `
 Continue the user's sentence naturally.
 The user is typing a message.
@@ -47,15 +75,26 @@ Only continue the sentence if it is incomplete.
 
 Rules:
 - Do NOT complete finished sentences
-- Do NOT repeat input conversation and sentences
-- Suggest only if you get the previous context from inputs or past conversation messages
+- Do NOT repeat input conversation or sentences
 - Continue from the unfinished sentence
 - Max 4 words
 - No punctuation at the end
-- If last word is complete append a space to continue with next word
 - Return empty if no continuation is needed
+- NEVER include leading or trailing spaces
 
-Input:
+Examples:
+
+Input: "how are you doi"
+Completion:
+ng
+
+Input: "how are you doing"
+Completion:
+today
+
+Input: "meeting tomorrow"
+Completion:
+
 
 Conversation:
 ${conversation.join("\n")}
@@ -64,12 +103,32 @@ User input:
 "${input}"
 
 Completion:
-`.trim();
+`;
 
-        const result = await this.llm.complete(prompt);
+        const res = await this.llm.complete(prompt);
+        return res?.[0] || "";
+    }
 
+    /**
+     * FINAL: Public API
+     */
+    async generate({ input, conversation = [] }) {
+        if (!this.shouldInvokeLLM(input)) {
+            return { suggestion: "" };
+        }
+
+        // 1️⃣ Get text continuation
+        const completion = await this.generateCompletion(input, conversation);
+        if (!completion) {
+            return { suggestion: "" };
+        }
+
+        // 2️⃣ Decide spacing
+        const needsSpace = await this.needsSpace(input, completion);
+
+        // 3️⃣ Deterministic formatting (THIS NEVER FAILS)
         return {
-            suggestion: result?.[0] || ""
+            suggestion: needsSpace ? " " + completion : completion
         };
     }
 }
