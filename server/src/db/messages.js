@@ -32,7 +32,7 @@ export async function getMessages(conversationId) {
         return null;
     }
     const messages = await prisma.message.findMany({
-        where: { conversationId: conversationId },
+        where: { conversationId: conversationId, deletedAt: null },
         orderBy: [
             { createdAt: 'asc' },
             { id: 'asc' },
@@ -67,6 +67,7 @@ export async function getMessagesV2({
     const messages = await prisma.message.findMany({
         where: {
             conversationId: Number(conversationId), // ✅ MUST be explicit
+            deletedAt: null,
             ...(before
                 ? {
                     createdAt: {
@@ -84,4 +85,19 @@ export async function getMessagesV2({
 
     // Prisma returns newest → oldest, UI needs oldest → newest
     return messages.reverse();
+}
+
+export async function getMessageById(id) {
+    if (id === null || id === undefined) return null;
+    return prisma.message.findUnique({
+        where: { id: Number(id) },
+    });
+}
+
+export async function deleteMessage(id) {
+    if (id === null || id === undefined) return null;
+    return prisma.message.update({
+        where: { id: Number(id) },
+        data: { deletedAt: new Date() },
+    });
 }

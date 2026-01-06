@@ -57,13 +57,51 @@ export function useChatSocket({
       });
     }
 
+    function handleDeleted(payload) {
+      const { id, conversationId } = payload;
+      const convoId = String(conversationId);
+
+      setMessages(prev => {
+        const current = prev[conversationId] || [];
+        const filtered = current.filter(m => String(m.id) !== String(id));
+
+        // update conversations based on remaining messages
+        const lastMsg = filtered.length ? filtered[filtered.length - 1] : null;
+        setConversations(prevConvos => {
+          const existing = prevConvos.find(c => c.id === convoId);
+          if (!existing) return prevConvos;
+
+          const updated = {
+            ...existing,
+            lastMessage: lastMsg ? lastMsg.content : "",
+            lastTime: lastMsg
+              ? new Date(lastMsg.createdAt).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "",
+            updatedAt: new Date().toISOString(),
+          };
+
+          return [updated, ...prevConvos.filter(c => c.id !== convoId)];
+        });
+
+        return {
+          ...prev,
+          [conversationId]: filtered,
+        };
+      });
+    }
+
     socket.on("users:online", handleOnline);
     socket.on("message:new", handleMessage);
+    socket.on("message:deleted", handleDeleted);
     socket.on("connect", onReconnect);
 
     return () => {
       socket.off("users:online", handleOnline);
       socket.off("message:new", handleMessage);
+      socket.off("message:deleted", handleDeleted);
       socket.off("connect", onReconnect);
     };
   }, [socket, activeId]);
