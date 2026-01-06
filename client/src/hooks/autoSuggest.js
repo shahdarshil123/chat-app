@@ -2,11 +2,20 @@ import { useEffect, useRef, useState } from "react";
 import { fetchAutoSuggestion } from "../api/ai.js";
 import { shouldSuggest } from "./shouldSuggest.js";
 
-export function useAutoSuggest({ input, conversation }) {
+export function useAutoSuggest({ input, conversation, disabled, onSuggest }) {
   const [suggestion, setSuggestion] = useState("");
   const abortRef = useRef(null);
+  const prevInputRef = useRef(input);
 
   useEffect(() => {
+    if(prevInputRef.current !== input){
+      setSuggestion("");
+      prevInputRef.current = input;
+    }
+
+    if(disabled){
+      return;
+    }
     if (!shouldSuggest(input)) {
       setSuggestion("");
       return;
@@ -25,11 +34,16 @@ export function useAutoSuggest({ input, conversation }) {
         const res = await fetchAutoSuggestion({
           input,
           conversation,
+          signal: controller.signal,
         });
 
-        if (!controller.signal.aborted) {
-          setSuggestion(res?.suggestion || "");
-        }
+        if (controller.signal.aborted) return;
+
+        const next = (res?.suggestion || "").trim();
+        setSuggestion(next);
+
+        if (next) onSuggest?.();
+
       } catch (err) {
         if (err.name !== "AbortError") {
           console.error("Auto-suggest failed", err);
@@ -41,7 +55,7 @@ export function useAutoSuggest({ input, conversation }) {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [input, conversation]);
+  }, [input, conversation, disabled]);
 
   console.log(suggestion);
   return suggestion;

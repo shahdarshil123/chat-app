@@ -47,10 +47,12 @@ Only continue the sentence if it is incomplete.
 
 Rules:
 - Do NOT complete finished sentences
-- Do NOT repeat input
-- continue from the unfinished sentence
-- Max 10 words
+- Do NOT repeat input conversation and sentences
+- Suggest only if you get the previous context from inputs or past conversation messages
+- Continue from the unfinished sentence
+- Max 4 words
 - No punctuation at the end
+- If last word is complete append a space to continue with next word
 - Return empty if no continuation is needed
 
 Input:

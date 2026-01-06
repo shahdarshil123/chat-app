@@ -3,10 +3,22 @@ import { useAutoSuggest } from "../hooks/autoSuggest.js";
 
 export default function MessageInput({ onSend, conversation = [] }) {
   const [value, setValue] = useState("");
+  const [suppressSuggest, setSuppressSuggest] = useState(false);
+  const [lastSuggestAt, setLastSuggestAt] = useState(0);
+  
+  const COOLDOWN_MS = 4000;
+  const now = Date.now();
+  const isCooldownActive = lastSuggestAt > 0 &&
+  Date.now() - lastSuggestAt < COOLDOWN_MS;
+
 
   const suggestion = useAutoSuggest({
     input: value,
     conversation,
+    disabled: suppressSuggest || isCooldownActive,
+    onSuggest: ()=>{
+      setLastSuggestAt(Date.now());
+    }
   });
 
   function submit() {
@@ -33,11 +45,20 @@ export default function MessageInput({ onSend, conversation = [] }) {
       <input
         placeholder="Type a message"
         value={value}
-        onChange={e => setValue(e.target.value)}
+        onChange={e => {
+          setValue(e.target.value);
+
+          // any user typing resume autosuggest
+          if(suppressSuggest){
+            setSuppressSuggest(false);
+          }
+        }}
         onKeyDown={e => {
           if (e.key === "Tab" && suggestion) {
             e.preventDefault();
-            setValue(value + suggestion);
+            acceptSuggestion();
+            setSuppressSuggest(true);
+            // setValue(value + suggestion);
           }
           if (e.key === "Enter") {
             submit();

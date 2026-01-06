@@ -44,7 +44,7 @@ export class BaseLLM {
     _normalize(text = "") {
         return text
             .split("\n")
-            .map(l => l.trim())
+            .map(l => l.trim().replace(/^["'“”]+|["'“”]+$/g, ""))
             .filter(Boolean);
     }
 }
