@@ -80,8 +80,33 @@ export async function getMessagesV2({
             createdAt: "desc",
         },
         take: limit,
+        include: {
+            sender: {
+                select: {
+                    id: true,
+                    username: true,
+                    displayName: true,
+                    avatarUrl: true,
+                },
+            },
+        },
     });
 
     // Prisma returns newest → oldest, UI needs oldest → newest
     return messages.reverse();
+}
+
+export async function getMessageById(id) {
+    if (id === null || id === undefined) return null;
+    return prisma.message.findUnique({
+        where: { id: Number(id) },
+    });
+}
+
+export async function deleteMessage(id) {
+    if (id === null || id === undefined) return null;
+    return prisma.message.update({
+        where: { id: Number(id) },
+        data: { deletedAt: new Date() },
+    });
 }

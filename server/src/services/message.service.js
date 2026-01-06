@@ -1,4 +1,4 @@
-import { saveMessage, getMessages, getMessagesV2 } from "../db/messages.js";
+import { saveMessage, getMessages, getMessagesV2, getMessageById, deleteMessage } from "../db/messages.js";
 import { getConversationMembers, updateConversationUpdateAt } from "../db/conversations.js";
 import { io, getUserSocketIds } from '../sockets.js';
 
@@ -91,4 +91,44 @@ export async function getMessageServiceV2(
         after,
         mode: "paginated",
     });
+}
+
+export async function deleteMessageService(messageId, requesterId) {
+    const message = await getMessageById(Number(messageId));
+    if (!message) {
+        const err = new Error("Message not found");
+        err.status = 404;
+        throw err;
+    }
+
+    // Only allow sender to delete their own message for now
+    if (Number(message.senderId) !== Number(requesterId)) {
+        const err = new Error("Not authorized to delete this message");
+        err.status = 403;
+        throw err;
+    }
+
+    const deleted = await deleteMessage(Number(messageId));
+
+    // Notify conversation members about deletion
+    const conversation = await getConversationMembers(deleted.conversationId);
+    if (conversation) {
+        for (const member of conversation.members) {
+            const sockets = await getUserSocketIds(member.userId);
+            if (!sockets) continue;
+            for (const socketId of sockets) {
+                io.to(socketId).emit("message:deleted", {
+                    id: deleted.id,
+                    conversationId: deleted.conversationId,
+                });
+
+                io.to(socketId).emit("conversation:updated", {
+                    conversationId: deleted.conversationId,
+                    updatedAt: new Date(),
+                });
+            }
+        }
+    }
+
+    return deleted;
 }

@@ -46,7 +46,11 @@ export default function ChatLayout({ currentUser, onLogout }) {
     return {
       id: m.id,
       fromSelf: m.senderId === CURRENT_USER_ID,
-      text: m.content,
+      text: m.deleted || m.deletedAt ? "This message was deleted" : m.content,
+      deleted: !!(m.deleted || m.deletedAt),
+      // keep original sender object and use its displayName (server should provide this)
+      sender: m.sender || null,
+      senderName: m.sender?.displayName || m.sender?.username || "",
       createdAt: m.createdAt,
       time: new Date(m.createdAt).toLocaleTimeString([], {
         hour: "2-digit",
@@ -107,13 +111,17 @@ export default function ChatLayout({ currentUser, onLogout }) {
  ===================================== */
   const { queueMessage, flushOutbox } = useOutbox({
     sendMessagePayload,
-    onMessageSent: msg => {
-      setMessages(prev => ({
-        ...prev,
-        [msg.conversationId]: prev[msg.conversationId].map(m =>
-          m.id === msg.id ? { ...m, status: "sent" } : m
-        ),
-      }));
+    onMessageSent: (queued, saved) => {
+      const payload = saved?.message || saved;
+      const mapped = payload ? mapMessage(payload) : null;
+      setMessages(prev => {
+        const key = String(queued.conversationId);
+        const arr = prev[key] || [];
+        const next = arr.map(m =>
+          m.id === queued.id ? (mapped ? mapped : { ...m, status: "sent" }) : m
+        );
+        return { ...prev, [key]: next };
+      });
     },
   });
 
@@ -181,7 +189,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
             .map(w => w[0])
             .join("")
             .toUpperCase(),
-          lastMessage: lastMsg?.content || "",
+          lastMessage: lastMsg ? (lastMsg.deleted || lastMsg.deletedAt ? "This message was deleted" : lastMsg.content) : "",
           lastTime: lastMsg
             ? new Date(lastMsg.createdAt).toLocaleTimeString([], {
               hour: "2-digit",
@@ -360,13 +368,16 @@ export default function ChatLayout({ currentUser, onLogout }) {
         })
         : time;
 
-      // ---------- 6️⃣ Update SAME message → sent ----------
+      // ---------- 6️⃣ Replace optimistic message with server-saved message ----------
+      const payload = saved?.message || saved;
+      const mappedSaved = payload ? mapMessage(payload) : null;
+      // ensure server time if provided
+      if (mappedSaved) mappedSaved.time = serverTime;
+
       setMessages(prev => ({
         ...prev,
         [activeId]: prev[activeId].map(m =>
-          m.id === tempMessage.id
-            ? { ...m, status: "sent", time: serverTime }
-            : m
+          m.id === tempMessage.id ? mappedSaved : m
         ),
       }));
 

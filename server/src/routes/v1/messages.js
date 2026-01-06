@@ -1,5 +1,5 @@
 import express from 'express';
-import { sendMessageService, getMessageServiceV1 } from '../../services/message.service.js';
+import { sendMessageService, getMessageServiceV1, deleteMessageService } from '../../services/message.service.js';
 import { requireAuth } from '../../middleware/requireAuth.js';
 
 const router = express.Router();
@@ -46,6 +46,27 @@ router.get("/:conversationId/messages", requireAuth, async (req, res) => {
     }
     catch (error) {
         res.status(500).json({ error: 'Failed to get messages' });
+    }
+});
+
+router.delete('/:conversationId/messages/:messageId', requireAuth, async (req, res) => {
+    try {
+        const conversationId = Number(req.params.conversationId);
+        const messageId = Number(req.params.messageId);
+        const userId = req.session?.userId;
+
+        if (!conversationId || !messageId) {
+            return res.status(400).json({ error: 'conversationId and messageId are required' });
+        }
+
+        console.log(`Deleting Message:${messageId}`);
+        const deleted = await deleteMessageService(messageId, userId);
+
+        res.status(200).json({ id: deleted.id, conversationId: deleted.conversationId });
+    } catch (error) {
+        console.error('Delete message error:', error);
+        const status = error?.status || 500;
+        res.status(status).json({ error: error.message || 'Failed to delete message' });
     }
 });
 
