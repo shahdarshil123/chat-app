@@ -183,23 +183,28 @@ export default function MessageFeed({
 
                     <div className="message-meta">
                       <span className="time">{m.time}</span>
-                      {m.fromSelf && !isDeleted && (
-                        <span className={`ticks ${m.status ?? "sent"}`}>
-                          ✓✓
-                        </span>
-                      )}
+                      {m.fromSelf && !isDeleted && (() => {
+                        const st = m.status;
+                        if (st === 'sent') return <span className={`ticks sent`}>✓</span>;
+                        if (st === 'delivered' || st === 'seen') return <span className={`ticks delivered`}>✓✓</span>;
+                        return null; // don't show ticks while pending
+                      })()}
 
-                      {m.fromSelf && !isDeleted && (
-                        (() => {
-                          const idStr = String(m.id);
-                          const isDeleting = deletingIds.has(idStr);
-                          return (
+                      {m.fromSelf && !isDeleted && (() => {
+                        const idStr = String(m.id);
+                        const isDeleting = deletingIds.has(idStr);
+                        const hasServerId = !Number.isNaN(Number(m.id));
+                        const isPending = m.status === 'pending';
+                        const isDeletable = hasServerId && !isPending;
+
+                        return (
+                          <>
                             <button
                               className={`btn-delete ${isDeleting ? 'loading' : ''}`}
-                              onClick={() => setPendingDelete(m)}
+                              onClick={() => isDeletable && setPendingDelete(m)}
                               aria-label="Delete message"
-                              title="Delete message"
-                              disabled={isDeleting}
+                              title={isDeletable ? "Delete message" : "Cannot delete until message is sent"}
+                              disabled={!isDeletable || isDeleting}
                             >
                               {isDeleting ? (
                                 <span className="loader" aria-hidden></span>
@@ -212,9 +217,10 @@ export default function MessageFeed({
                                 </svg>
                               )}
                             </button>
-                          );
-                        })()
-                      )}
+                            {/* do not show textual "sending..." hint; show nothing until server-saved */}
+                          </>
+                        );
+                      })()}
                     </div>
                   </>
                 );

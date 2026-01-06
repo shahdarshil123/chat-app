@@ -32,7 +32,7 @@ export async function getMessages(conversationId) {
         return null;
     }
     const messages = await prisma.message.findMany({
-        where: { conversationId: conversationId, deletedAt: null },
+        where: { conversationId: conversationId },
         orderBy: [
             { createdAt: 'asc' },
             { id: 'asc' },
@@ -67,7 +67,6 @@ export async function getMessagesV2({
     const messages = await prisma.message.findMany({
         where: {
             conversationId: Number(conversationId), // ✅ MUST be explicit
-            deletedAt: null,
             ...(before
                 ? {
                     createdAt: {

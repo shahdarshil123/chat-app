@@ -22,13 +22,12 @@ export function useChatSocket({
 
       const convoId = String(msg.conversationId);
 
-      setMessages(prev => ({
-        ...prev,
-        [convoId]: [
-          ...(prev[convoId] || []),
-          mapMessage(msg),
-        ],
-      }));
+      setMessages(prev => {
+        const existing = prev[convoId] || [];
+        const exists = existing.some(m => String(m.id) === String(msg.id));
+        if (exists) return prev;
+        return { ...prev, [convoId]: [...existing, mapMessage(msg)] };
+      });
 
       setConversations(prev => {
         const existing = prev.find(c => c.id === convoId);
@@ -104,15 +103,32 @@ export function useChatSocket({
       });
     }
 
+    function handleConversationUpdated(payload) {
+      const { conversationId, updatedAt } = payload || {};
+      if (!conversationId) return;
+
+      const convoId = String(conversationId);
+
+      setConversations(prev => {
+        const existing = prev.find(c => c.id === convoId);
+        if (!existing) return prev;
+
+        const updated = { ...existing, updatedAt: updatedAt || new Date().toISOString() };
+        return [updated, ...prev.filter(c => c.id !== convoId)];
+      });
+    }
+
     socket.on("users:online", handleOnline);
     socket.on("message:new", handleMessage);
     socket.on("message:deleted", handleDeleted);
+    socket.on("conversation:updated", handleConversationUpdated);
     socket.on("connect", onReconnect);
 
     return () => {
       socket.off("users:online", handleOnline);
       socket.off("message:new", handleMessage);
       socket.off("message:deleted", handleDeleted);
+      socket.off("conversation:updated", handleConversationUpdated);
       socket.off("connect", onReconnect);
     };
   }, [socket, activeId, currentUserId, mapMessage, onReconnect, setMessages, setConversations, setOnlineUsers]);

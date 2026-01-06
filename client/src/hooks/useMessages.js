@@ -115,13 +115,14 @@ export function useMessages({
 
     if (!result.messages.length) return;
 
-    setMessages(prev => ({
-      ...prev,
-      [String(conversationId)]: [
-        ...prev[String(conversationId)],
-        ...result.messages.map(mapMessage),
-      ],
-    }));
+    setMessages(prev => {
+      const key = String(conversationId);
+      const existing = prev[key] || [];
+      const existingIds = new Set(existing.map(m => String(m.id)));
+      const mapped = result.messages.map(mapMessage).filter(m => !existingIds.has(String(m.id)));
+      if (!mapped.length) return prev;
+      return { ...prev, [key]: [...existing, ...mapped] };
+    });
   }
 
   return {
