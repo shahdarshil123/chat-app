@@ -172,6 +172,33 @@ export default function MessageFeed({
               m.fromSelf ? "self" : "other"
             }`}
           >
+            {/* delete button placed outside of .message to avoid overlap; rendered before message */}
+            {m.fromSelf && !m.deleted && (() => {
+              const idStr = String(m.id);
+              const isDeleting = deletingIds.has(idStr);
+              const hasServerId = !Number.isNaN(Number(m.id));
+              const isPending = m.status === 'pending';
+              const isDeletable = hasServerId && !isPending;
+
+              return (
+                <div className="delete-button-wrap">
+                  <button
+                    className={`btn-delete ${isDeleting ? 'loading' : ''}`}
+                    onClick={() => isDeletable && setPendingDelete(m)}
+                    aria-label="Delete message"
+                    title={isDeletable ? "Delete message" : "Cannot delete until message is sent"}
+                    disabled={!isDeletable || isDeleting}
+                  >
+                    {isDeleting ? (
+                      <span className="loader" aria-hidden></span>
+                    ) : (
+                      <i className="fa-solid fa-trash" aria-hidden></i>
+                    )}
+                  </button>
+                </div>
+              );
+            })()}
+
             <div className="message">
               {(() => {
                 const isDeleted = !!m.deleted;
@@ -187,39 +214,7 @@ export default function MessageFeed({
                         const st = m.status;
                         if (st === 'sent') return <span className={`ticks sent`}>✓</span>;
                         if (st === 'delivered' || st === 'seen') return <span className={`ticks delivered`}>✓✓</span>;
-                        return null; // don't show ticks while pending
-                      })()}
-
-                      {m.fromSelf && !isDeleted && (() => {
-                        const idStr = String(m.id);
-                        const isDeleting = deletingIds.has(idStr);
-                        const hasServerId = !Number.isNaN(Number(m.id));
-                        const isPending = m.status === 'pending';
-                        const isDeletable = hasServerId && !isPending;
-
-                        return (
-                          <>
-                            <button
-                              className={`btn-delete ${isDeleting ? 'loading' : ''}`}
-                              onClick={() => isDeletable && setPendingDelete(m)}
-                              aria-label="Delete message"
-                              title={isDeletable ? "Delete message" : "Cannot delete until message is sent"}
-                              disabled={!isDeletable || isDeleting}
-                            >
-                              {isDeleting ? (
-                                <span className="loader" aria-hidden></span>
-                              ) : (
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                                  <path d="M3 6h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                  <path d="M8 6v12a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                  <path d="M10 11v6M14 11v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                              )}
-                            </button>
-                            {/* do not show textual "sending..." hint; show nothing until server-saved */}
-                          </>
-                        );
+                        return null;
                       })()}
                     </div>
                   </>
