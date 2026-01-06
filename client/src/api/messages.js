@@ -44,3 +44,21 @@ if (!res.ok) {
 return res.json();
 
 }
+
+export async function deleteMessage({ conversationId, messageId, version = MESSAGE_API_VERSION_ENUM.V1 }){
+  if(!conversationId || !messageId){
+    throw new Error('conversationId and messageId are required');
+  }
+
+  const res = await fetch(
+    `http://localhost:4000/api/${version}/message/${conversationId}/messages/${messageId}`,
+    { method: 'DELETE', credentials: 'include' }
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || 'Failed to delete message');
+  }
+
+  return res.json();
+}

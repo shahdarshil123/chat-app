@@ -60,14 +60,22 @@ export async function getUserConversations(userId) {
                     content: true,
                     senderId: true,
                     createdAt: true,
+                    deletedAt: true,
                 },
             });
-    
+            // If the last message was soft-deleted, avoid returning the original content
+            const safeLastMessage = lastMessage
+                ? {
+                      ...lastMessage,
+                      content: lastMessage.deletedAt ? "This message was deleted" : lastMessage.content,
+                  }
+                : null;
+
             return {
                 ...m,
                 unreadCount,
                 lastReadAt: m.lastReadAt,
-                lastMessage,
+                lastMessage: safeLastMessage,
             };
         })
     );

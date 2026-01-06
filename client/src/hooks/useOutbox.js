@@ -44,8 +44,9 @@ export function useOutbox({
         );
 
         if (res?.ok) {
+          const saved = await res.json().catch(() => null);
           await removeFromOutbox(msg.id);
-          onMessageSent?.(msg);
+          onMessageSent?.(msg, saved);
         }
       }
     } finally {
