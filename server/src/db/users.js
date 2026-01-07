@@ -110,3 +110,42 @@ export async function getLastSeen(userId) {
 export async function verifyPassword(user, password) {
     return await bcrypt.compare(password, user.passwordHash);
 }
+
+export async function searchUsers(currentUserId, query, limit) {
+    if (!query || !query.trim()) {
+        return [];
+    }
+    return await prisma.user.findMany({
+        where: {
+            id: {
+                not: currentUserId,
+            },
+            OR: [
+                {
+                    displayName: {
+                        contains: query,
+                        mode: "insensitive",
+                    },
+                },
+                {
+                    username: {
+                        contains: query,
+                        mode: "insensitive",
+                    },
+                },
+            ],
+        },
+        take: limit,
+        orderBy: {
+            displayName: "asc",
+        },
+        select: {
+            id: true,
+            displayName: true,
+            username: true,
+            avatarUrl: true,
+            status: true,
+            lastSeen: true,
+        },
+    });
+}

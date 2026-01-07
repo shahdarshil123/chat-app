@@ -3,6 +3,7 @@ import ConversationList from "./ConversationList.jsx";
 import ConversationHeader from "./ConversationHeader.jsx";
 import MessageFeed from "./MessageFeed.jsx";
 import MessageInput from "./MessageInput.jsx";
+import NewChatDialog from "./NewChatDialog.jsx";
 
 import { fetchMessages } from "../api/messages.js";
 import { connectSocket } from "../socket.js";
@@ -36,6 +37,9 @@ export default function ChatLayout({ currentUser, onLogout }) {
   // const [unreadBoundary, setUnreadBoundary] = useState({});
 
   const [onlineUsers, setOnlineUsers] = useState(new Set());
+
+  const [showNewChat, setShowNewChat] = useState(false);
+
 
 
 
@@ -397,6 +401,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
               Render
   ================================ */
   return (
+    <>
     <div className="chat-app">
       {/* ===== Sidebar ===== */}
       <aside className="sidebar">
@@ -406,6 +411,14 @@ export default function ChatLayout({ currentUser, onLogout }) {
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
+
+        {/* ➕ New Conversation Button */}
+        <button
+          className="new-chat-button"
+          onClick={() => setShowNewChat(true)}
+        >
+          + New Chat
+        </button>
 
         <ConversationList
           conversations={filteredConversations}
@@ -438,5 +451,17 @@ export default function ChatLayout({ currentUser, onLogout }) {
         <MessageInput onSend={sendMessage} />
       </section>
     </div>
+
+    {/* ✅ MODAL MUST LIVE HERE */}
+
+      <NewChatDialog
+        open={showNewChat}
+        currentUserId={CURRENT_USER_ID}
+        onClose={() => setShowNewChat(false)}
+        onConversationCreated={selectConversation}
+      />
+
+    </>
+    
   );
 }
