@@ -102,10 +102,49 @@ body,
   border-radius: 12px;
   padding: 16px;
 
+
   box-shadow: 0 10px 30px rgba(0,0,0,0.15);
   text-align: left;
 }
 
+/* ================================
+   New Chat Button
+================================ */
+.new-chat-button {
+  width: 100%;
+  margin: 8px 0 10px;
+  padding: 10px 12px;
+
+  background: var(--accent, #22c55e); /* fallback green */
+  color: #052e16;
+
+  border: none;
+  border-radius: 10px;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+  text-align: center;
+
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+
+/* Hover */
+.new-chat-button:hover {
+  background: #16a34a; /* slightly darker green */
+}
+
+/* Active (click) */
+.new-chat-button:active {
+  transform: scale(0.98);
+}
+
+/* Focus (keyboard accessibility) */
+.new-chat-button:focus-visible {
+  outline: 2px solid #86efac;
+  outline-offset: 2px;
+}
 .new-chat-modal-title {
   font-weight: 700;
   margin-bottom: 10px;
