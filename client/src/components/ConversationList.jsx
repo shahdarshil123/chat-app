@@ -2,51 +2,61 @@ export default function ConversationList({
   conversations,
   messages,
   activeId,
-  currentUserId,
   onSelect,
 }) {
-  function getUnreadCount(conversation) {
-  const convoMessages = messages[conversation.id];
-
-  // ✅ LOGIN CASE: messages not loaded yet
-  if (!convoMessages) {
-    return conversation.unread ?? 0;
+  if (!conversations || conversations.length === 0) {
+    return (
+      <div className="muted" style={{ padding: "12px" }}>
+        No conversations
+      </div>
+    );
   }
-
-  // ✅ AFTER OPENING CHAT: derive from messages
-  if (!conversation.lastReadAt) return 0;
-
-  const lastRead = new Date(conversation.lastReadAt).getTime();
-
-  return convoMessages.filter(
-    m =>
-      !m.fromSelf &&
-      new Date(m.createdAt).getTime() > lastRead
-  ).length;
-}
 
   return (
     <div className="conversation-list">
-      {conversations.map(c => {
-        const unread = getUnreadCount(c);
+      {conversations.map(convo => {
+        const isActive = convo.id === activeId;
+
+        const convoMessages = messages?.[convo.id] || [];
+        const lastMessage =
+          convoMessages.length > 0
+            ? convoMessages[convoMessages.length - 1]?.text
+            : convo.lastMessage || "";
 
         return (
           <button
-            key={c.id}
-            className={`conversation ${c.id === activeId ? "active" : ""}`}
-            onClick={() => onSelect(c.id)}
+            key={convo.id}
+            type="button"
+            className={`conversation ${isActive ? "active" : ""}`}
+            onClick={() => onSelect(convo.id)}
           >
-            <div className="avatar">{c.avatar}</div>
+            <div className="avatar">
+              {convo.avatar ||
+                convo.title?.[0]?.toUpperCase() ||
+                "?"}
+            </div>
 
             <div className="meta">
               <div className="top">
-                <span className="title">{c.title}</span>
-                <span className="time">{c.lastTime}</span>
+                <span className="title">
+                  {convo.title || "Unknown"}
+                </span>
+
+                {convo.lastTime && (
+                  <span className="time">{convo.lastTime}</span>
+                )}
               </div>
 
               <div className="bottom">
-                <span className="preview">{c.lastMessage}</span>
-                {unread > 0 && <span className="badge">{unread}</span>}
+                <span className="preview">
+                  {lastMessage}
+                </span>
+
+                {convo.unread > 0 && (
+                  <span className="badge">
+                    {convo.unread}
+                  </span>
+                )}
               </div>
             </div>
           </button>
