@@ -2,10 +2,10 @@ import { useState } from "react";
 import { AUTH_API_VERSION_ENUM } from "../constants/apiVersions";
 import { AUTH_API_VERSION } from "../config";
 
-export default function LoginPanel({ onLogin }) {
-  
-    const [email, setEmail] = useState("alice@example.com");
-    const [password, setPassword] = useState("password123");
+export default function LoginPanel({ onLogin, onSwitchToRegister }) {
+
+  const [email, setEmail] = useState("alice@example.com");
+  const [password, setPassword] = useState("password123");
   // const [email, setEmail] = useState("");
   // const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -28,7 +28,7 @@ export default function LoginPanel({ onLogin }) {
         throw new Error("Invalid email or password");
       }
 
-      const user  = await res.json();
+      const user = await res.json();
 
       // ✅ store logged-in user (NO JWT)
       localStorage.setItem("currentUser", JSON.stringify(user));
@@ -74,7 +74,7 @@ export default function LoginPanel({ onLogin }) {
           <button
             type="button"
             className="link-button"
-            onClick={() => alert("Create account")}
+            onClick={onSwitchToRegister}
           >
             Create account
           </button>

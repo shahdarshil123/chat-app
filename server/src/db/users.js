@@ -84,6 +84,19 @@ export async function updateUserLastSeen(userId) {
 
 }
 
+export async function checkUserExists(email, username) {
+    const user = await prisma.user.findFirst({
+        where: {
+            OR: [
+                { email },
+                { username },
+            ],
+        },
+    });
+
+    return user;
+}
+
 export async function getLastSeen(userId) {
     return prisma.user.findUnique({
         where: { id: userId },
@@ -94,6 +107,6 @@ export async function getLastSeen(userId) {
     });
 }
 
-export async function verifyPassword(user, password){
+export async function verifyPassword(user, password) {
     return await bcrypt.compare(password, user.passwordHash);
 }

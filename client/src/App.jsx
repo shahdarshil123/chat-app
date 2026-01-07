@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import LoginPanel from "./components/LoginPanel";
 import ChatLayout from "./components/ChatLayout";
 import { disconnectSocket } from "./socket";
+import RegisterPanel from "./components/RegisterPanel";
 import "./styles/chat.css";
 
 import { AUTH_API_VERSION } from "./config";
@@ -9,6 +10,7 @@ import { AUTH_API_VERSION } from "./config";
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [authMode, setAuthMode] = useState("login"); // login | register
 
   // 🔑 Restore session from SERVER (not localStorage)
   useEffect(() => {
@@ -54,10 +56,20 @@ export default function App() {
   return (
     <div className="app-root">
       {!currentUser ? (
-        <LoginPanel onLogin={handleLogin} />
-      ) : (
-        <ChatLayout currentUser={currentUser} onLogout={handleLogout} />
-      )}
+  authMode === "login" ? (
+    <LoginPanel
+      onLogin={handleLogin}
+      onSwitchToRegister={() => setAuthMode("register")}
+    />
+  ) : (
+    <RegisterPanel
+      onRegister={handleLogin}
+      onSwitchToLogin={() => setAuthMode("login")}
+    />
+  )
+) : (
+  <ChatLayout currentUser={currentUser} onLogout={handleLogout} />
+)}
     </div>
   );
 }
