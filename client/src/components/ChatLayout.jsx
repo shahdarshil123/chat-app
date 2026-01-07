@@ -21,26 +21,26 @@ import { useConversations } from "../hooks/useConversations.js";
    Chat Layout
 ================================ */
 export default function ChatLayout({ currentUser, onLogout }) {
-;
+  ;
   console.log("Message API version:", MESSAGE_API_VERSION);
   const CURRENT_USER_ID = currentUser.id;
 
-// const chatContainerRef = useRef(null);
+  // const chatContainerRef = useRef(null);
   const flushingRef = useRef(false);
   const sendingRef = useRef(Promise.resolve());
 
-// const [conversations, setConversations] = useState([]);
+  // const [conversations, setConversations] = useState([]);
   // const [messages, setMessages] = useState({});
   // const [pagination, setPagination] = useState({});
   const [activeId, setActiveId] = useState(null); // Active conversation id
   const [search, setSearch] = useState("");
-// const [unreadBoundary, setUnreadBoundary] = useState({});
+  // const [unreadBoundary, setUnreadBoundary] = useState({});
 
   const [onlineUsers, setOnlineUsers] = useState(new Set());
 
   const [showNewChat, setShowNewChat] = useState(false);
 
-  
+
 
 
   /* ================================
@@ -52,7 +52,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
       fromSelf: m.senderId === CURRENT_USER_ID,
       text: m.deleted || m.deletedAt ? "This message was deleted" : m.content,
       deleted: !!(m.deleted || m.deletedAt),
-// keep original sender object and use its displayName (server should provide this)
+      // keep original sender object and use its displayName (server should provide this)
       sender: m.sender || null,
       senderName: m.sender?.displayName || m.sender?.username || "",
       createdAt: m.createdAt,
@@ -90,7 +90,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
     mapMessage,
   });
 
-async function sendMessagePayload({ conversationId, content }) {
+  async function sendMessagePayload({ conversationId, content }) {
     console.log("➡️ Sending to server:", {
       conversationId,
       content,
@@ -140,7 +140,7 @@ async function sendMessagePayload({ conversationId, content }) {
   );
 
   const handleReconnect = useCallback(async () => {
-await flushOutbox();
+    await flushOutbox();
     if (activeId) {
       fetchMissedMessages(activeId);
     }
@@ -161,7 +161,7 @@ await flushOutbox();
   /* ================================
      Load Conversations
   ================================ */
-useEffect(() => {
+  useEffect(() => {
     async function loadConversations() {
       const res = await fetch(
         `http://localhost:4000/api/${CONVERSATION_API_VERSION}/conversation/${CURRENT_USER_ID}`, { credentials: "include" }
@@ -257,9 +257,9 @@ useEffect(() => {
     await markAsRead(id);
   }
 
-    /* ================================
-     🔥 NEW CONVERSATION HANDLER
-  ================================ */
+  /* ================================
+   🔥 NEW CONVERSATION HANDLER
+================================ */
   async function handleConversationCreated(conversationId) {
     // 1️⃣ Refresh list so new convo appears
     await reloadConversations();
@@ -271,7 +271,7 @@ useEffect(() => {
   /* ================================
      Derived State
   ================================ */
-const sortedConversations = useMemo(() => {
+  const sortedConversations = useMemo(() => {
     return [...conversations].sort((a, b) => {
       const ta = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
       const tb = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
@@ -293,7 +293,7 @@ const sortedConversations = useMemo(() => {
     );
   }, [search, conversations]);
 
-  
+
   /* ================================
      Unread Divider Logic
      (incoming only, backend-driven)
@@ -306,8 +306,8 @@ const sortedConversations = useMemo(() => {
 
     return activeMessages.find(
       m =>
-!m.fromSelf &&
-new Date(m.createdAt).getTime() > boundaryTime
+        !m.fromSelf &&
+        new Date(m.createdAt).getTime() > boundaryTime
     )?.id ?? null;
   }, [activeId, activeMessages, unreadBoundary]);
 
@@ -409,6 +409,11 @@ new Date(m.createdAt).getTime() > boundaryTime
     }
   }
 
+  function getInitials(name = "") {
+    const parts = name.trim().split(/\s+/);
+    return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase();
+  }
+
   /* ================================
               Render
   ================================ */
@@ -424,7 +429,7 @@ new Date(m.createdAt).getTime() > boundaryTime
             onChange={e => setSearch(e.target.value)}
           />
 
-{/* ➕ New Conversation Button */}
+          {/* ➕ New Conversation Button */}
           <button
             className="new-chat-button"
             onClick={() => setShowNewChat(true)}
@@ -440,6 +445,9 @@ new Date(m.createdAt).getTime() > boundaryTime
           />
 
           <div className="sidebar-footer">
+            <div className="avatar" title={currentUser.displayName || currentUser.username}>
+              {getInitials(currentUser.displayName || currentUser.username)}
+            </div>
             <button className="logout-button" onClick={onLogout}>
               Logout
             </button>
@@ -449,9 +457,9 @@ new Date(m.createdAt).getTime() > boundaryTime
 
         {/* ===== Main Chat ===== */}
         <section className="main">
-          <ConversationHeader             conversation={activeConversation}
+          <ConversationHeader conversation={activeConversation}
             onlineUsers={onlineUsers}
-            currentUserId={CURRENT_USER_ID}           />
+            currentUserId={CURRENT_USER_ID} />
 
           <MessageFeed
             messages={activeMessages}

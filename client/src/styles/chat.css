@@ -249,7 +249,16 @@ body,
 
 /* Conversation List */
 .conversation-list {
+  flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #c7c7c7 transparent
+}
+
+.conversation-list::-webkit-scrollbar {
+   width: 6px;
 }
 
 .conversation {
@@ -793,13 +802,19 @@ body,
 .sidebar {
   display: flex;
   flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
 }
 
 /* Footer container */
 .sidebar-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin-top: auto; /* ⭐ pushes it to the bottom */
   padding-top: 12px;
   border-top: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .logout-button {
