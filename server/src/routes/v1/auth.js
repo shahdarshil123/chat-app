@@ -1,5 +1,5 @@
 import express from 'express';
-import { userLoginService, registerUser } from "../../services/auth.service.js";
+import { userLoginService, registerUser, resetPasswordService } from "../../services/auth.service.js";
 
 const router = express.Router();
 
@@ -119,5 +119,29 @@ router.post("/register", async (req, res) => {
         return res.status(500).send("Internal server error");
     }
 });
+
+router.post("/reset-password", async (req, res) => {
+    try {
+        const { username, email, password } = req.body;
+        console.log(username, email, password);
+        await resetPasswordService({
+            username,
+            email,
+            password,
+        });
+
+        res.json({
+            success: true,
+            message: "Password reset successfully",
+        });
+    } catch (err) {
+        console.error("Reset password error:", err.message);
+
+        res.status(400).json({
+            error: err.message,
+        });
+    }
+});
+
 
 export default router;

@@ -149,3 +149,22 @@ export async function searchUsers(currentUserId, query, limit) {
         },
     });
 }
+
+export async function findUserForPasswordReset({ username, email }) {
+    return prisma.user.findFirst({
+        where: {
+            username,
+            email,
+        },
+    });
+}
+
+export async function updateUserPassword(userId, hashedPassword) {
+    return prisma.user.update({
+        where: { id: userId },
+        data: {
+            passwordHash: hashedPassword,
+            updatedAt: new Date(),
+        },
+    });
+}

@@ -1,5 +1,5 @@
 import express from 'express';
-import { getUserByEmail, verifyPassword, updateUserLastSeen, checkUserExists } from '../db/users.js';
+import { getUserByEmail, verifyPassword, updateUserLastSeen, checkUserExists, findUserForPasswordReset, updateUserPassword } from '../db/users.js';
 import bcrypt from "bcrypt";
 
 export async function userLoginService(email, password) {
@@ -48,3 +48,26 @@ export async function registerUser({
     return user;
 }
 
+export async function resetPasswordService({
+    username,
+    email,
+    password,
+}) {
+    if (!username || !email || !password) {
+        throw new Error("Missing required fields");
+    }
+
+    const user = await findUserForPasswordReset({ username, email });
+
+    if (!user) {
+        throw new Error("User not found");
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await updateUserPassword(user.id, hashedPassword);
+
+    return {
+        success: true,
+    };
+}

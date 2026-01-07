@@ -32,10 +32,11 @@ export default function ForgotPassword({ onBackToLogin }) {
                     }),
                 }
             );
+            // console.log(res);
 
             if (!res.ok) {
-                throw new Error("Failed to reset password");
-            }
+                throw new Error("Failed to reset the password, check the details are correct?");
+            } 
 
             setSuccess("Password reset successfully. You can now sign in.");
         } catch (err) {
