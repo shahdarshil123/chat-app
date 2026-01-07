@@ -3,8 +3,9 @@ import LoginPanel from "./components/LoginPanel";
 import ChatLayout from "./components/ChatLayout";
 import { disconnectSocket } from "./socket";
 import RegisterPanel from "./components/RegisterPanel";
-import "./styles/chat.css";
 
+import "./styles/chat.css";
+import ForgotPassword from "./components/ForgotPassword";
 import { AUTH_API_VERSION } from "./config";
 
 export default function App() {
@@ -47,6 +48,7 @@ export default function App() {
 
     disconnectSocket();
     setCurrentUser(null);
+    setAuthMode("login");
   }
 
   if (loading) {
@@ -60,16 +62,24 @@ export default function App() {
     <LoginPanel
       onLogin={handleLogin}
       onSwitchToRegister={() => setAuthMode("register")}
+      onForgotPassword={()=> setAuthMode("forgot")}
     />
-  ) : (
-    <RegisterPanel
-      onRegister={handleLogin}
-      onSwitchToLogin={() => setAuthMode("login")}
-    />
-  )
-) : (
-  <ChatLayout currentUser={currentUser} onLogout={handleLogout} />
-)}
+  ) : authMode === "register" ? (
+          <RegisterPanel
+            onRegister={handleLogin}
+            onSwitchToLogin={() => setAuthMode("login")}
+          />
+        ) : (
+          <ForgotPassword
+            onBackToLogin={() => setAuthMode("login")}
+          />
+        )
+      ) : (
+        <ChatLayout
+          currentUser={currentUser}
+          onLogout={handleLogout}
+        />
+      )}
     </div>
   );
 }

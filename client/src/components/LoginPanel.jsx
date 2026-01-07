@@ -2,12 +2,10 @@ import { useState } from "react";
 import { AUTH_API_VERSION_ENUM } from "../constants/apiVersions";
 import { AUTH_API_VERSION } from "../config";
 
-export default function LoginPanel({ onLogin, onSwitchToRegister }) {
+export default function LoginPanel({ onLogin, onSwitchToRegister, onForgotPassword }) {
 
   const [email, setEmail] = useState("alice@example.com");
   const [password, setPassword] = useState("password123");
-  // const [email, setEmail] = useState("");
-  // const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   async function handleSubmit(e) {
@@ -64,6 +62,14 @@ export default function LoginPanel({ onLogin, onSwitchToRegister }) {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
+
+         <button
+          type="button"
+          className="link-button forgot-link"
+          onClick={onForgotPassword}
+        >
+          Forgot password?
+        </button>
 
         <button className="login-button" type="submit">
           Continue
