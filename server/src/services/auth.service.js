@@ -1,8 +1,9 @@
 import express from 'express';
-import { getUserByEmail, verifyPassword, updateUserLastSeen } from '../db/users.js';
+import { getUserByEmail, verifyPassword, updateUserLastSeen, checkUserExists, findUserForPasswordReset, updateUserPassword } from '../db/users.js';
+import bcrypt from "bcrypt";
 
-export async function userLoginService(email, password){
-    if(!email || !password) return;
+export async function userLoginService(email, password) {
+    if (!email || !password) return;
 
     const user = await getUserByEmail(email);
     if (!user) return;
@@ -16,8 +17,57 @@ export async function userLoginService(email, password){
     return user;
 };
 
-export async function userLogoutService(){
 
-};
+export async function registerUser({
+    username,
+    email,
+    password,
+    displayName,
+}) {
+    // 1️⃣ Check if user already exists
+    const existingUser = await checkUserExists(email, username);
 
+    if (existingUser) {
+        throw new Error("USER_ALREADY_EXISTS");
+    }
 
+    // 2️⃣ Hash password
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // 3️⃣ Create user
+    const user = await prisma.user.create({
+        data: {
+            username,
+            email,
+            passwordHash,
+            displayName,
+        },
+    });
+
+    // 4️⃣ Return safe user object
+    return user;
+}
+
+export async function resetPasswordService({
+    username,
+    email,
+    password,
+}) {
+    if (!username || !email || !password) {
+        throw new Error("Missing required fields");
+    }
+
+    const user = await findUserForPasswordReset({ username, email });
+
+    if (!user) {
+        throw new Error("User not found");
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await updateUserPassword(user.id, hashedPassword);
+
+    return {
+        success: true,
+    };
+}
