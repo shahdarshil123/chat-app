@@ -3,6 +3,7 @@ import ConversationList from "./ConversationList.jsx";
 import ConversationHeader from "./ConversationHeader.jsx";
 import MessageFeed from "./MessageFeed.jsx";
 import MessageInput from "./MessageInput.jsx";
+import NewChatDialog from "./NewChatDialog.jsx";
 
 import { fetchMessages } from "../api/messages.js";
 import { connectSocket } from "../socket.js";
@@ -37,11 +38,14 @@ export default function ChatLayout({ currentUser, onLogout }) {
 
   const [onlineUsers, setOnlineUsers] = useState(new Set());
 
+  const [showNewChat, setShowNewChat] = useState(false);
+
+
 
 
   /* ================================
-    Helpers
- ================================ */
+     Helpers
+  ================================ */
   function mapMessage(m) {
     return {
       id: m.id,
@@ -62,6 +66,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
 
   const {
     conversations,
+    reloadConversations,
     setConversations,
     unreadBoundary,
     setUnreadBoundary,
@@ -126,8 +131,8 @@ export default function ChatLayout({ currentUser, onLogout }) {
   });
 
   /* =====================================
-       Socket
-    ===================================== */
+     Socket
+=====  ================================ */
 
   const socket = useMemo(
     () => (CURRENT_USER_ID ? connectSocket(CURRENT_USER_ID) : null),
@@ -146,7 +151,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
     activeId,
     currentUserId: CURRENT_USER_ID,
     setMessages,
-    setConversations,
+    setConversations: reloadConversations,
     setOnlineUsers,
     mapMessage,
     onReconnect: handleReconnect,
@@ -250,6 +255,17 @@ export default function ChatLayout({ currentUser, onLogout }) {
     }
 
     await markAsRead(id);
+  }
+
+  /* ================================
+   🔥 NEW CONVERSATION HANDLER
+================================ */
+  async function handleConversationCreated(conversationId) {
+    // 1️⃣ Refresh list so new convo appears
+    await reloadConversations();
+
+    // 2️⃣ Open the conversation
+    await selectConversation(conversationId);
   }
 
   /* ================================
@@ -393,50 +409,79 @@ export default function ChatLayout({ currentUser, onLogout }) {
     }
   }
 
+  function getInitials(name = "") {
+    const parts = name.trim().split(/\s+/);
+    return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase();
+  }
+
   /* ================================
               Render
   ================================ */
   return (
-    <div className="chat-app">
-      {/* ===== Sidebar ===== */}
-      <aside className="sidebar">
-        <input
-          className="search"
-          placeholder="Search conversations"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+    <>
+      <div className="chat-app">
+        {/* ===== Sidebar ===== */}
+        <aside className="sidebar">
+          <input
+            className="search"
+            placeholder="Search conversations"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
 
-        <ConversationList
-          conversations={filteredConversations}
-          messages={messages}
-          activeId={activeId}
-          onSelect={selectConversation}
-        />
-
-        <div className="sidebar-footer">
-          <button className="logout-button" onClick={onLogout}>
-            Logout
+          {/* ➕ New Conversation Button */}
+          <button
+            className="new-chat-button"
+            onClick={() => setShowNewChat(true)}
+          >
+            + New Chat
           </button>
-        </div>
-      </aside>
+
+          <ConversationList
+            conversations={filteredConversations}
+            messages={messages}
+            activeId={activeId}
+            onSelect={selectConversation}
+          />
+
+          <div className="sidebar-footer">
+            <div className="avatar" title={currentUser.displayName || currentUser.username}>
+              {getInitials(currentUser.displayName || currentUser.username)}
+            </div>
+            <button className="logout-button" onClick={onLogout}>
+              Logout
+            </button>
+          </div>
+        </aside>
 
 
-      {/* ===== Main Chat ===== */}
-      <section className="main">
-        <ConversationHeader conversation={activeConversation}
-          onlineUsers={onlineUsers}
-          currentUserId={CURRENT_USER_ID} />
+        {/* ===== Main Chat ===== */}
+        <section className="main">
+          <ConversationHeader conversation={activeConversation}
+            onlineUsers={onlineUsers}
+            currentUserId={CURRENT_USER_ID} />
 
-        <MessageFeed
-          messages={activeMessages}
-          unreadStartId={unreadStartId}
-          activeId={activeId}
-          onLoadOlder={loadOlderMessages}
-        />
+          <MessageFeed
+            messages={activeMessages}
+            unreadStartId={unreadStartId}
+            activeId={activeId}
+            onLoadOlder={loadOlderMessages}
+          />
 
-        <MessageInput onSend={sendMessage} />
-      </section>
-    </div>
+          <MessageInput onSend={sendMessage} />
+        </section>
+      </div>
+
+      {/* ✅ MODAL MUST LIVE HERE */}
+
+      <NewChatDialog
+        open={showNewChat}
+        currentUserId={CURRENT_USER_ID}
+        onClose={() => setShowNewChat(false)}
+        onConversationCreated={handleConversationCreated}
+      />
+
+    </>
+
   );
 }

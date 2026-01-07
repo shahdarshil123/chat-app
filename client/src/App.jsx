@@ -2,13 +2,16 @@ import { useEffect, useState } from "react";
 import LoginPanel from "./components/LoginPanel";
 import ChatLayout from "./components/ChatLayout";
 import { disconnectSocket } from "./socket";
-import "./styles/chat.css";
+import RegisterPanel from "./components/RegisterPanel";
 
+import "./styles/chat.css";
+import ForgotPassword from "./components/ForgotPassword";
 import { AUTH_API_VERSION } from "./config";
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [authMode, setAuthMode] = useState("login"); // login | register
 
   // 🔑 Restore session from SERVER (not localStorage)
   useEffect(() => {
@@ -45,6 +48,7 @@ export default function App() {
 
     disconnectSocket();
     setCurrentUser(null);
+    setAuthMode("login");
   }
 
   if (loading) {
@@ -54,9 +58,27 @@ export default function App() {
   return (
     <div className="app-root">
       {!currentUser ? (
-        <LoginPanel onLogin={handleLogin} />
+  authMode === "login" ? (
+    <LoginPanel
+      onLogin={handleLogin}
+      onSwitchToRegister={() => setAuthMode("register")}
+      onForgotPassword={()=> setAuthMode("forgot")}
+    />
+  ) : authMode === "register" ? (
+          <RegisterPanel
+            onRegister={handleLogin}
+            onSwitchToLogin={() => setAuthMode("login")}
+          />
+        ) : (
+          <ForgotPassword
+            onBackToLogin={() => setAuthMode("login")}
+          />
+        )
       ) : (
-        <ChatLayout currentUser={currentUser} onLogout={handleLogout} />
+        <ChatLayout
+          currentUser={currentUser}
+          onLogout={handleLogout}
+        />
       )}
     </div>
   );
