@@ -32,9 +32,10 @@ export function useMessages({
       conversationId,
     });
 
+    const key = String(conversationId);
     setMessages(prev => ({
       ...prev,
-      [conversationId]: result.messages.map(mapMessage),
+      [key]: result.messages.map(mapMessage),
     }));
 
     // v1 → no pagination state
@@ -43,7 +44,7 @@ export function useMessages({
     // v2+ → reset pagination
     setPagination(prev => ({
       ...prev,
-      [conversationId]: {
+      [String(conversationId)]: {
         hasMore: result.hasMore,
         oldestCursor: result.oldestCursor,
         loading: false,
@@ -55,12 +56,12 @@ export function useMessages({
      Load older messages (pagination)
   ---------------------------------- */
   async function loadOlderMessages() {
-    const page = pagination[activeId];
+    const page = pagination[String(activeId)];
     if (!page || !page.hasMore || page.loading) return;
 
     setPagination(prev => ({
       ...prev,
-      [activeId]: { ...prev[activeId], loading: true },
+      [String(activeId)]: { ...prev[String(activeId)], loading: true },
     }));
 
     const result = await strategy.fetchOlder({
@@ -82,15 +83,15 @@ export function useMessages({
 
     setMessages(prev => ({
       ...prev,
-      [activeId]: [
+      [String(activeId)]: [
         ...result.messages.map(mapMessage),
-        ...(prev[activeId] || []),
+        ...(prev[String(activeId)] || []),
       ],
     }));
 
     setPagination(prev => ({
       ...prev,
-      [activeId]: {
+      [String(activeId)]: {
         hasMore: result.hasMore,
         oldestCursor: result.oldestCursor,
         loading: false,
@@ -102,7 +103,7 @@ export function useMessages({
      Fetch missed messages (reconnect)
   ---------------------------------- */
   async function fetchMissedMessages(conversationId) {
-    const existing = messages[conversationId];
+    const existing = messages[String(conversationId)];
     if (!existing || !existing.length) return;
 
     const last = existing[existing.length - 1];
@@ -114,13 +115,14 @@ export function useMessages({
 
     if (!result.messages.length) return;
 
-    setMessages(prev => ({
-      ...prev,
-      [conversationId]: [
-        ...prev[conversationId],
-        ...result.messages.map(mapMessage),
-      ],
-    }));
+    setMessages(prev => {
+      const key = String(conversationId);
+      const existing = prev[key] || [];
+      const existingIds = new Set(existing.map(m => String(m.id)));
+      const mapped = result.messages.map(mapMessage).filter(m => !existingIds.has(String(m.id)));
+      if (!mapped.length) return prev;
+      return { ...prev, [key]: [...existing, ...mapped] };
+    });
   }
 
   return {

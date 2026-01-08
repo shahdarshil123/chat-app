@@ -47,27 +47,35 @@ export async function getUserConversations(userId) {
                     },
                 },
             });
-            
+
             const lastMessage = await prisma.message.findFirst({
                 where: {
                     conversationId: m.conversationId,
                 },
-                orderBy:{
+                orderBy: {
                     createdAt: "desc",
                 },
-                select:{
+                select: {
                     id: true,
                     content: true,
                     senderId: true,
                     createdAt: true,
+                    deletedAt: true,
                 },
             });
-    
+            // If the last message was soft-deleted, avoid returning the original content
+            const safeLastMessage = lastMessage
+                ? {
+                    ...lastMessage,
+                    content: lastMessage.deletedAt ? "This message was deleted" : lastMessage.content,
+                }
+                : null;
+
             return {
                 ...m,
                 unreadCount,
                 lastReadAt: m.lastReadAt,
-                lastMessage,
+                lastMessage: safeLastMessage,
             };
         })
     );
@@ -114,6 +122,46 @@ export async function getOrCreateDirectConversation(userId1, userId2) {
     });
 }
 
+export async function findDirectConversation(userA, userB) {
+    return prisma.conversation.findFirst({
+        where: {
+            isGroup: false,
+            AND: [
+                {
+                    members: {
+                        some: { userId: userA }
+                    }
+                },
+                {
+                    members: {
+                        some: { userId: userB }
+                    }
+                }
+            ]
+        },
+        select: {
+            id: true
+        }
+    });
+}
+
+export async function createConversation(currentUserId, targetUserId) {
+    return await prisma.conversation.create({
+        data: {
+            isGroup: false,
+            createdBy: currentUserId,
+            members: {
+                create: [
+                    { userId: currentUserId },
+                    { userId: targetUserId },
+                ],
+            },
+        },
+    });
+}
+
+
+
 export async function updateLastConversationReadAt(userId, conversationId) {
     await prisma.conversationMember.update({
         where: {
@@ -139,10 +187,10 @@ export async function getConversationMembers(conversationId) {
     });
 }
 
-export async function updateConversationUpdateAt(conversationId){
+export async function updateConversationUpdateAt(conversationId) {
     return await prisma.conversation.update({
-            where: {conversationId: conversationId},
-            data: {updatedAt: new Date()},
-        });
+        where: { conversationId: conversationId },
+        data: { updatedAt: new Date() },
+    });
 }
 

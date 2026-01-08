@@ -1,23 +1,40 @@
 import express from 'express';
 import { requireAuth } from '../../middleware/requireAuth.js';
-import { createUserService, getLastSeenService, getUserByIdService, updateUserLastSeenService } from '../../services/user.service.js';
+import { createUserService, getLastSeenService, getUserByIdService, searchUsersService, updateUserLastSeenService } from '../../services/user.service.js';
 
 const router = express.Router();
 
-router.get('/:id', requireAuth, async (req, res) => {
+router.get("/search", requireAuth, async (req, res) => {
     try {
-        const userId = parseInt(req.params.id);
-        const user = await getUserByIdService(userId);
-        if (!user) {
-            return res.status(404).json({
-                error: 'User not found'
-            });
+        console.log(req.query);
+        
+        const {query}  = req.query;
+        const currentUserId = req.session?.userId;
+
+        console.log("Running the search API");
+        console.log(query);
+        console.log(currentUserId);
+
+        if (!currentUserId) {
+            return res.status(401).send("Not authenticated");
         }
-        res.json({ user });
-    }
-    catch (error) {
-        console.error('Get user error:', error);
-        res.status(500).json({ error: 'Failed to get the user' });
+
+        if (!query || !query.trim()) {
+            return res.json([]);
+        }
+
+        const users = await searchUsersService({
+            query,
+            currentUserId,
+            limit: 10,
+        });
+
+        console.log(users);
+
+        res.json(users);
+    } catch (err) {
+        console.error("User search error:", err);
+        res.status(500).send("Internal server error");
     }
 });
 
@@ -42,13 +59,13 @@ router.post("/create", requireAuth, async (req, res) => {
             console.log("Invalid Display Name");
             return res.status(400).json({ error: "Invalid Display Name" });
         }
-        
+
         const user = await createUserService(username, email, password, displayName);
         console.log(user);
-        if(!user){
+        if (!user) {
             res.status(500).json({ error: 'Failed to create the user' });
         }
-        
+
         res.json({ user });
     }
     catch (error) {
@@ -57,9 +74,28 @@ router.post("/create", requireAuth, async (req, res) => {
     }
 });
 
+
+router.get('/:id', requireAuth, async (req, res) => {
+    try {
+        const userId = parseInt(req.params.id);
+        const user = await getUserByIdService(userId);
+        if (!user) {
+            return res.status(404).json({
+                error: 'User not found'
+            });
+        }
+        res.json({ user });
+    }
+    catch (error) {
+        console.error('Get user error:', error);
+        res.status(500).json({ error: 'Failed to get the user' });
+    }
+});
+
+
 router.post("/:id/last-seen", requireAuth, async (req, res) => {
     try {
-        const userId  = parseInt(req.params.id);
+        const userId = parseInt(req.params.id);
 
         if (!userId) {
             return res.status(400).json({ error: "userId is required" });
@@ -67,7 +103,7 @@ router.post("/:id/last-seen", requireAuth, async (req, res) => {
 
         const updated = await updateUserLastSeenService(userId);
 
-        if(!updated){
+        if (!updated) {
             res.status(500).json({ error: 'Failed to create the user' });
         }
 
@@ -80,7 +116,7 @@ router.post("/:id/last-seen", requireAuth, async (req, res) => {
 
 router.get("/:id/last-seen", requireAuth, async (req, res) => {
     try {
-        const userId  = parseInt(req.params.id);
+        const userId = parseInt(req.params.id);
 
         const user = await getLastSeenService(userId);
 
@@ -94,5 +130,7 @@ router.get("/:id/last-seen", requireAuth, async (req, res) => {
         res.status(500).json({ error: "Failed to get lastSeen" });
     }
 });
+
+
 
 export default router;

@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
+import { deleteMessage } from "../api/messages.js";
 
 export default function MessageFeed({
   messages = [],
@@ -105,6 +106,53 @@ export default function MessageFeed({
   /* =====================================================
      5️⃣ Render
      ===================================================== */
+  const [deletingIds, setDeletingIds] = useState(new Set());
+  const [pendingDelete, setPendingDelete] = useState(null); // message object pending confirmation
+
+  // Clear deleting state when server marks message deleted
+  useEffect(() => {
+    if (!messages || !messages.length) return;
+
+    setDeletingIds(prev => {
+      const copy = new Set(prev);
+      let changed = false;
+
+      for (const m of messages) {
+        if (m.deleted && copy.has(String(m.id))) {
+          copy.delete(String(m.id));
+          changed = true;
+        }
+      }
+
+      return changed ? copy : prev;
+    });
+  }, [messages]);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!pendingDelete) return;
+    const id = pendingDelete.id;
+
+    setPendingDelete(null);
+    // mark as deleting to disable button / show loader until server responds
+    setDeletingIds(prev => new Set(prev).add(String(id)));
+
+    try {
+      await deleteMessage({ conversationId: activeId, messageId: id });
+      // wait for server `message:deleted` event to update UI; we remove the deleting flag below
+    } catch (err) {
+      // rollback deleting flag
+      setDeletingIds(prev => {
+        const copy = new Set(prev);
+        copy.delete(String(id));
+        return copy;
+      });
+      alert("Failed to delete message: " + (err.message || err));
+    }
+  }, [activeId, pendingDelete]);
+
+  const handleDeleteCancel = useCallback(() => {
+    setPendingDelete(null);
+  }, []);
   return (
     <div
       className="messages"
@@ -124,21 +172,73 @@ export default function MessageFeed({
               m.fromSelf ? "self" : "other"
             }`}
           >
-            <div className="message">
-              <span>{m.text}</span>
+            {/* delete button placed outside of .message to avoid overlap; rendered before message */}
+            {m.fromSelf && !m.deleted && (() => {
+              const idStr = String(m.id);
+              const isDeleting = deletingIds.has(idStr);
+              const hasServerId = !Number.isNaN(Number(m.id));
+              const isPending = m.status === 'pending';
+              const isDeletable = hasServerId && !isPending;
 
-              <div className="message-meta">
-                <span className="time">{m.time}</span>
-                {m.fromSelf && (
-                  <span className={`ticks ${m.status ?? "sent"}`}>
-                    ✓✓
-                  </span>
-                )}
-              </div>
+              return (
+                <div className="delete-button-wrap">
+                  <button
+                    className={`btn-delete ${isDeleting ? 'loading' : ''}`}
+                    onClick={() => isDeletable && setPendingDelete(m)}
+                    aria-label="Delete message"
+                    title={isDeletable ? "Delete message" : "Cannot delete until message is sent"}
+                    disabled={!isDeletable || isDeleting}
+                  >
+                    {isDeleting ? (
+                      <span className="loader" aria-hidden></span>
+                    ) : (
+                      <i className="fa-solid fa-trash" aria-hidden></i>
+                    )}
+                  </button>
+                </div>
+              );
+            })()}
+
+            <div className="message">
+              {(() => {
+                const isDeleted = !!m.deleted;
+                return (
+                  <>
+                    <div className="sender-name">{m.senderName || m.sender?.displayName || (m.fromSelf ? 'You' : '')}</div>
+                    <span className={isDeleted ? "deleted" : ""}>
+                      {m.text}
+                    </span>
+
+                    <div className="message-meta">
+                      <span className="time">{m.time}</span>
+                      {m.fromSelf && !isDeleted && (() => {
+                        const st = m.status;
+                        if (st === 'sent') return <span className={`ticks sent`}>✓</span>;
+                        if (st === 'delivered' || st === 'seen') return <span className={`ticks delivered`}>✓✓</span>;
+                        return null;
+                      })()}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
       ))}
+
+      {pendingDelete && (
+        <div className="delete-modal-overlay">
+          <div className="delete-modal" role="dialog" aria-modal="true">
+            <div className="delete-modal-title">Delete message</div>
+            <div className="delete-modal-body">Are you sure you want to delete this message?</div>
+            <div className="delete-modal-preview">"{pendingDelete.text}"</div>
+            <div className="delete-modal-actions">
+              <button className="btn btn-cancel" onClick={handleDeleteCancel}>Cancel</button>
+              <button className="btn btn-confirm" onClick={handleDeleteConfirm}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div ref={bottomRef} />
     </div>

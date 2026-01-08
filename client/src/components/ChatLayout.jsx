@@ -3,6 +3,7 @@ import ConversationList from "./ConversationList.jsx";
 import ConversationHeader from "./ConversationHeader.jsx";
 import MessageFeed from "./MessageFeed.jsx";
 import MessageInput from "./MessageInput.jsx";
+import NewChatDialog from "./NewChatDialog.jsx";
 
 import { fetchMessages } from "../api/messages.js";
 import { connectSocket } from "../socket.js";
@@ -28,25 +29,30 @@ export default function ChatLayout({ currentUser, onLogout }) {
   const flushingRef = useRef(false);
   const sendingRef = useRef(Promise.resolve());
 
-  // const [conversations, setConversations] = useState([]);
-  // const [messages, setMessages] = useState({});
-  // const [pagination, setPagination] = useState({});
+ 
   const [activeId, setActiveId] = useState(null); // Active conversation id
   const [search, setSearch] = useState("");
   // const [unreadBoundary, setUnreadBoundary] = useState({});
 
   const [onlineUsers, setOnlineUsers] = useState(new Set());
 
+  const [showNewChat, setShowNewChat] = useState(false);
+
+
 
 
   /* ================================
-    Helpers
- ================================ */
+     Helpers
+  ================================ */
   function mapMessage(m) {
     return {
       id: m.id,
       fromSelf: m.senderId === CURRENT_USER_ID,
-      text: m.content,
+      text: m.deleted || m.deletedAt ? "This message was deleted" : m.content,
+      deleted: !!(m.deleted || m.deletedAt),
+      // keep original sender object and use its displayName (server should provide this)
+      sender: m.sender || null,
+      senderName: m.sender?.displayName || m.sender?.username || "",
       createdAt: m.createdAt,
       time: new Date(m.createdAt).toLocaleTimeString([], {
         hour: "2-digit",
@@ -58,6 +64,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
 
   const {
     conversations,
+    reloadConversations,
     setConversations,
     unreadBoundary,
     setUnreadBoundary,
@@ -107,19 +114,23 @@ export default function ChatLayout({ currentUser, onLogout }) {
  ===================================== */
   const { queueMessage, flushOutbox } = useOutbox({
     sendMessagePayload,
-    onMessageSent: msg => {
-      setMessages(prev => ({
-        ...prev,
-        [msg.conversationId]: prev[msg.conversationId].map(m =>
-          m.id === msg.id ? { ...m, status: "sent" } : m
-        ),
-      }));
+    onMessageSent: (queued, saved) => {
+      const payload = saved?.message || saved;
+      const mapped = payload ? mapMessage(payload) : null;
+      setMessages(prev => {
+        const key = String(queued.conversationId);
+        const arr = prev[key] || [];
+        const next = arr.map(m =>
+          m.id === queued.id ? (mapped ? mapped : { ...m, status: "sent" }) : m
+        );
+        return { ...prev, [key]: next };
+      });
     },
   });
 
   /* =====================================
-       Socket
-    ===================================== */
+     Socket
+=====  ================================ */
 
   const socket = useMemo(
     () => (CURRENT_USER_ID ? connectSocket(CURRENT_USER_ID) : null),
@@ -138,7 +149,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
     activeId,
     currentUserId: CURRENT_USER_ID,
     setMessages,
-    setConversations,
+    setConversations: reloadConversations,
     setOnlineUsers,
     mapMessage,
     onReconnect: handleReconnect,
@@ -181,7 +192,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
             .map(w => w[0])
             .join("")
             .toUpperCase(),
-          lastMessage: lastMsg?.content || "",
+          lastMessage: lastMsg ? (lastMsg.deleted || lastMsg.deletedAt ? "This message was deleted" : lastMsg.content) : "",
           lastTime: lastMsg
             ? new Date(lastMsg.createdAt).toLocaleTimeString([], {
               hour: "2-digit",
@@ -242,6 +253,17 @@ export default function ChatLayout({ currentUser, onLogout }) {
     }
 
     await markAsRead(id);
+  }
+
+  /* ================================
+   🔥 NEW CONVERSATION HANDLER
+================================ */
+  async function handleConversationCreated(conversationId) {
+    // 1️⃣ Refresh list so new convo appears
+    await reloadConversations();
+
+    // 2️⃣ Open the conversation
+    await selectConversation(conversationId);
   }
 
   /* ================================
@@ -360,13 +382,16 @@ export default function ChatLayout({ currentUser, onLogout }) {
         })
         : time;
 
-      // ---------- 6️⃣ Update SAME message → sent ----------
+      // ---------- 6️⃣ Replace optimistic message with server-saved message ----------
+      const payload = saved?.message || saved;
+      const mappedSaved = payload ? mapMessage(payload) : null;
+      // ensure server time if provided
+      if (mappedSaved) mappedSaved.time = serverTime;
+
       setMessages(prev => ({
         ...prev,
         [activeId]: prev[activeId].map(m =>
-          m.id === tempMessage.id
-            ? { ...m, status: "sent", time: serverTime }
-            : m
+          m.id === tempMessage.id ? mappedSaved : m
         ),
       }));
 
@@ -382,53 +407,80 @@ export default function ChatLayout({ currentUser, onLogout }) {
     }
   }
 
+  function getInitials(name = "") {
+    const parts = name.trim().split(/\s+/);
+    return ((parts[0]?.[0] || "") + (parts[1]?.[0] || "")).toUpperCase();
+  }
+
   /* ================================
               Render
   ================================ */
   return (
-    <div className="chat-app">
-      {/* ===== Sidebar ===== */}
-      <aside className="sidebar">
-        <input
-          className="search"
-          placeholder="Search conversations"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+    <>
+      <div className="chat-app">
+        {/* ===== Sidebar ===== */}
+        <aside className="sidebar">
+          <input
+            className="search"
+            placeholder="Search conversations"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
 
-        <ConversationList
-          conversations={filteredConversations}
-          messages={messages}
-          activeId={activeId}
-          onSelect={selectConversation}
-        />
-
-        <div className="sidebar-footer">
-          <button className="logout-button" onClick={onLogout}>
-            Logout
+          {/* ➕ New Conversation Button */}
+          <button
+            className="new-chat-button"
+            onClick={() => setShowNewChat(true)}
+          >
+            + New Chat
           </button>
-        </div>
-      </aside>
+
+          <ConversationList
+            conversations={filteredConversations}
+            messages={messages}
+            activeId={activeId}
+            onSelect={selectConversation}
+          />
+
+          <div className="sidebar-footer">
+            <div className="avatar" title={currentUser.displayName || currentUser.username}>
+              {getInitials(currentUser.displayName || currentUser.username)}
+            </div>
+            <button className="logout-button" onClick={onLogout}>
+              Logout
+            </button>
+          </div>
+        </aside>
 
 
-      {/* ===== Main Chat ===== */}
-      <section className="main">
-        <ConversationHeader conversation={activeConversation}
-          onlineUsers={onlineUsers}
-          currentUserId={CURRENT_USER_ID} />
+        {/* ===== Main Chat ===== */}
+        <section className="main">
+          <ConversationHeader conversation={activeConversation}
+            onlineUsers={onlineUsers}
+            currentUserId={CURRENT_USER_ID} />
 
-        <MessageFeed
-          messages={activeMessages}
-          unreadStartId={unreadStartId}
-          activeId={activeId}
-          onLoadOlder={loadOlderMessages}
-        />
+          <MessageFeed
+            messages={activeMessages}
+            unreadStartId={unreadStartId}
+            activeId={activeId}
+            onLoadOlder={loadOlderMessages}
+          />
 
-        <MessageInput 
+          <MessageInput 
         onSend={sendMessage}
         conversation={activeMessages.slice(-3).map(m => m.text)}
         />
       </section>
-    </div>
+      </div>
+
+       {/* ✅ MODAL MUST LIVE HERE */}
+
+      <NewChatDialog
+        open={showNewChat}
+        currentUserId={CURRENT_USER_ID}
+        onClose={() => setShowNewChat(false)}
+        onConversationCreated={handleConversationCreated}
+      />
+    </>
   );
 }

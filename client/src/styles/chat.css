@@ -73,13 +73,192 @@ body,
   margin-bottom: 12px;
 }
 
+/* EXACT same mechanics as delete modal */
+.new-chat-modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* optional: remove dark background if you want */
+  background: rgba(0,0,0,0.35);
+
+  z-index: 1100;
+}
+
+.new-chat-modal {
+  width: 360px;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 18px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+
+.new-chat-modal {
+  width: 360px;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+
+
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  text-align: left;
+}
+
+/* ================================
+   New Chat Button
+================================ */
+.new-chat-button {
+  width: 100%;
+  margin: 8px 0 10px;
+  padding: 10px 12px;
+
+  background: var(--accent, #22c55e); /* fallback green */
+  color: #052e16;
+
+  border: none;
+  border-radius: 10px;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+  text-align: center;
+
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+
+/* Hover */
+.new-chat-button:hover {
+  background: #16a34a; /* slightly darker green */
+}
+
+/* Active (click) */
+.new-chat-button:active {
+  transform: scale(0.98);
+}
+
+/* Focus (keyboard accessibility) */
+.new-chat-button:focus-visible {
+  outline: 2px solid #86efac;
+  outline-offset: 2px;
+}
+.new-chat-modal-title {
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.new-chat-modal .search {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.new-chat-modal-list {
+  max-height: 280px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+
+/* .new-chat-user-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.new-chat-user-row:hover {
+  background: var(--panel-muted);
+} */
+
+/* User row container */
+.new-chat-user-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  padding: 10px 12px;
+  min-height: 56px;               /* ⭐ ensures proper row height */
+
+  width: 100%;
+  background: none;
+  border: none;
+  border-radius: 10px;
+
+  cursor: pointer;
+  text-align: left;
+}
+
+/* Avatar inside new chat list */
+.new-chat-user-row .avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+
+  background: var(--accent);
+  color: #052e16;
+
+  font-weight: 700;
+  font-size: 14px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;                 /* ⭐ prevents squishing */
+}
+
+/* Display name text */
+.new-chat-user-row span {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Hover */
+.new-chat-user-row:hover {
+  background: var(--panel-muted);
+}
+
+/* Selected state */
+.new-chat-user-row.selected {
+  background: #dcfce7;            /* light green */
+}
+
+.new-chat-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .search::placeholder {
   color: var(--text-muted);
 }
 
 /* Conversation List */
 .conversation-list {
+  flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #c7c7c7 transparent
+}
+
+.conversation-list::-webkit-scrollbar {
+   width: 6px;
 }
 
 .conversation {
@@ -228,6 +407,7 @@ body,
 
 /* Message Rows */
 .message-row {
+  position: relative;
   display: flex;
   align-items: flex-start;
   margin-bottom: 10px;
@@ -269,6 +449,185 @@ body,
 .message span {
   display: block;
   line-height: 1.4;
+}
+
+/* Deleted message appearance */
+.message .deleted {
+  opacity: 0.7;
+  font-style: italic;
+  color: rgba(0,0,0,0.6);
+}
+
+/* Sender name displayed above each message */
+.message .sender-name {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.message-row.self .message .sender-name {
+  text-align: right;
+}
+
+.message-row.other .message .sender-name {
+  text-align: left;
+}
+
+.btn-primary {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+
+  /* App green */
+  background-color: #22c55e;   /* green */
+  color: #ffffff;
+
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #16a34a;   /* darker green on hover */
+}
+
+.btn-primary:active:not(:disabled) {
+  background-color: #15803d;   /* slightly darker on click */
+}
+
+.btn-primary:disabled {
+  background-color: #86efac;   /* muted green */
+  color: #f0fdf4;
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+
+.delete-button-wrap {
+  margin-right: 8px;
+  display: inline-flex;
+  align-self: center;
+  flex: 0 0 auto;
+}
+
+.btn-delete {
+  background: var(--panel-muted);
+  color: #000; /* icon color: black */
+  border: 1px solid #e5e7eb;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+}
+
+/* Ensure Font Awesome icon inside delete button is solid black and sized */
+.btn-delete .fa-solid,
+.btn-delete i {
+  color: #000;
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.btn-delete:hover:not(:disabled) {
+  background: #dc2626;
+  color: #fff;
+  border-color: #b91c1c;
+}
+
+.btn-delete:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.btn-delete .loader {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(0,0,0,0.08);
+  border-top-color: #374151;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Ensure outgoing messages leave space for the delete button */
+.message-row.self .message {
+  margin-left: 8px; /* space after delete button */
+  max-width: calc(60% - 48px);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Modal styles for delete confirmation */
+.delete-modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.35);
+  z-index: 1100;
+}
+
+.delete-modal {
+  width: 320px;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 18px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  text-align: left;
+}
+
+.delete-modal-title {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.delete-modal-body {
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.delete-modal-preview {
+  background: var(--panel-muted);
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-style: italic;
+}
+
+.delete-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font-weight: 600;
+}
+
+.btn-cancel {
+  background: #f3f4f6;
+  color: #374151; /* ensure readable on light bg */
+  border: 1px solid #e5e7eb;
+  min-width: 84px;
+}
+
+.btn-confirm {
+  background: var(--accent);
+  color: #052e16;
 }
 
 /* Timestamp */
@@ -504,13 +863,19 @@ body,
 .sidebar {
   display: flex;
   flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
 }
 
 /* Footer container */
 .sidebar-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   margin-top: auto; /* ⭐ pushes it to the bottom */
   padding-top: 12px;
   border-top: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .logout-button {

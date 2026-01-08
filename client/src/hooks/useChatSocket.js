@@ -22,14 +22,12 @@ export function useChatSocket({
 
       const convoId = String(msg.conversationId);
 
-      setMessages(prev => ({
-        ...prev,
-        [msg.conversationId]: [
-          ...(prev[msg.conversationId] || []),
-          mapMessage(msg),
-        ],
-      }));
-
+      setMessages(prev => {
+        const existing = prev[convoId] || [];
+        const exists = existing.some(m => String(m.id) === String(msg.id));
+        if (exists) return prev;
+        return { ...prev, [convoId]: [...existing, mapMessage(msg)] };
+      });
 
       setConversations(prev => {
         const existing = prev.find(c => c.id === convoId);
@@ -43,28 +41,95 @@ export function useChatSocket({
             minute: "2-digit",
           }),
           unread:
-            convoId === activeId
-              ? 0
-              : (existing.unread || 0) + 1,
-          updatedAt: msg.createdAt, // 🔑 MUST update
+            convoId === activeId ? 0 : (existing.unread || 0) + 1,
+          updatedAt: msg.createdAt,
         };
 
-        // 🔑 REMOVE + PREPEND (do NOT rely on sort)
-        return [
-          updated,
-          ...prev.filter(c => c.id !== convoId),
-        ];
+        return [updated, ...prev.filter(c => c.id !== convoId)];
+      });
+    }
+
+    function handleDeleted(payload) {
+      const { id, conversationId } = payload;
+      const targetId = String(id);
+
+      setMessages(prev => {
+        let changed = false;
+        const next = {};
+        let affectedConversationKey = null;
+
+        for (const [convKey, arr] of Object.entries(prev)) {
+          const mapped = arr.map(m => {
+            if (String(m.id) === targetId) {
+              changed = true;
+              affectedConversationKey = convKey;
+              return { ...m, text: "This message was deleted", deleted: true };
+            }
+            return m;
+          });
+
+          next[convKey] = mapped;
+        }
+
+        if (!changed) return prev;
+
+        // Update conversation preview for affected conversation
+        if (affectedConversationKey) {
+          const mappedArr = next[affectedConversationKey] || [];
+          const lastMsg = mappedArr.length ? mappedArr[mappedArr.length - 1] : null;
+
+          setConversations(prevConvos => {
+            const convoIdStr = String(conversationId);
+            const existing = prevConvos.find(c => c.id === convoIdStr || c.id === Number(affectedConversationKey));
+            if (!existing) return prevConvos;
+
+            const updated = {
+              ...existing,
+              lastMessage: lastMsg ? lastMsg.text : "",
+              lastTime: lastMsg
+                ? new Date(lastMsg.createdAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "",
+              updatedAt: new Date().toISOString(),
+            };
+
+            return [updated, ...prevConvos.filter(c => c.id !== existing.id)];
+          });
+        }
+
+        return next;
+      });
+    }
+
+    function handleConversationUpdated(payload) {
+      const { conversationId, updatedAt } = payload || {};
+      if (!conversationId) return;
+
+      const convoId = String(conversationId);
+
+      setConversations(prev => {
+        const existing = prev.find(c => c.id === convoId);
+        if (!existing) return prev;
+
+        const updated = { ...existing, updatedAt: updatedAt || new Date().toISOString() };
+        return [updated, ...prev.filter(c => c.id !== convoId)];
       });
     }
 
     socket.on("users:online", handleOnline);
     socket.on("message:new", handleMessage);
+    socket.on("message:deleted", handleDeleted);
+    socket.on("conversation:updated", handleConversationUpdated);
     socket.on("connect", onReconnect);
 
     return () => {
       socket.off("users:online", handleOnline);
       socket.off("message:new", handleMessage);
+      socket.off("message:deleted", handleDeleted);
+      socket.off("conversation:updated", handleConversationUpdated);
       socket.off("connect", onReconnect);
     };
-  }, [socket, activeId]);
+  }, [socket, activeId, currentUserId, mapMessage, onReconnect, setMessages, setConversations, setOnlineUsers]);
 }
