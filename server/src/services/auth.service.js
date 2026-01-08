@@ -1,6 +1,7 @@
 import express from 'express';
 import { getUserByEmail, verifyPassword, updateUserLastSeen, checkUserExists, findUserForPasswordReset, updateUserPassword } from '../db/users.js';
 import bcrypt from "bcrypt";
+import { emit } from '../events/eventBus.js';
 
 export async function userLoginService(email, password) {
     if (!email || !password) return;
@@ -44,6 +45,10 @@ export async function registerUser({
         },
     });
 
+    emit("USER_CREATED", {
+        userId: user.id,
+        email: user.email,
+    });
     // 4️⃣ Return safe user object
     return user;
 }

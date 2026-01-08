@@ -1,5 +1,6 @@
 import express from 'express';
 import { userLoginService, registerUser, resetPasswordService } from "../../services/auth.service.js";
+import { verifyEmail } from '../../services/emailVerification.service.js';
 
 const router = express.Router();
 
@@ -143,5 +144,21 @@ router.post("/reset-password", async (req, res) => {
     }
 });
 
+router.get("/verify-email", async(req, res)=>{
+    try{
+        const {token} = req.query;
+
+        await verifyEmail(token);
+
+        res.status(200).json({
+            message: "Email verified successfully"
+        });
+    }
+    catch(err){
+        res.status(400).json({
+            error: err.message
+        });
+    }
+})
 
 export default router;

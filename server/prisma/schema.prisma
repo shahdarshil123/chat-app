@@ -34,6 +34,9 @@ model User {
   conversationMembers  ConversationMember[]
   createdConversations Conversation[]         @relation("ConversationCreator")
 
+  emailVerified Boolean @default(false)
+  emailVerifiedAt DateTime? 
+  
   @@index([email])
   @@index([username])
   @@index([status])
