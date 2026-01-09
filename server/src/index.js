@@ -9,8 +9,8 @@ import connectRedis from "connect-redis";
 import redis from "./redis/redis.js";
 import "./events/registerHandlers.js";
 
-import { MESSAGE_API_VERSION_ENUM, AUTH_API_VERSION_ENUM, CONVERSATION_API_VERSION_ENUM, USER_API_VERSION_ENUM} from "./constants/apiVersions.js";
-import {DEFAULT_MESSAGE_API_VERSION} from "./config.js";
+import { MESSAGE_API_VERSION_ENUM, AUTH_API_VERSION_ENUM, CONVERSATION_API_VERSION_ENUM, USER_API_VERSION_ENUM } from "./constants/apiVersions.js";
+import { DEFAULT_MESSAGE_API_VERSION } from "./config.js";
 
 //Import Routes
 import userRoutesV1 from "./routes/v1/users.js";
@@ -33,6 +33,8 @@ const redisStore = new RedisStore({
     prefix: "sess:",
 })
 
+const isProd = process.env.NODE_ENV === "prod";
+
 export const sessionMiddleware = session({
     store: redisStore,
     name: "chat.sid",
@@ -42,8 +44,8 @@ export const sessionMiddleware = session({
     rolling: false,
     cookie: {
         httpOnly: true,
-        sameSite: "none",   // ✅ REQUIRED for cross-origin
-        secure: true,       // ✅ REQUIRED for HTTPS
+        sameSite: isProd ? "none" : "lax",
+        secure: isProd,          // ❗ false on localhost
         maxAge: 1000 * 60 * 30,
     },
 });
