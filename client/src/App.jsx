@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import {Routes, Route, Navigate} from "react-router-dom";
 import LoginPanel from "./components/LoginPanel";
 import ChatLayout from "./components/ChatLayout";
 import { disconnectSocket } from "./socket";
@@ -37,15 +38,15 @@ export default function App() {
     restoreSession();
   }, []);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
+  // useEffect(() => {
+  //   const params = new URLSearchParams(window.location.search);
+  //   const token = params.get("token");
 
-    if (token) {
-      setResetToken(token);
-      setAuthMode("reset");
-    }
-  }, []);
+  //   if (token) {
+  //     setResetToken(token);
+  //     setAuthMode("reset");
+  //   }
+  // }, []);
 
   function handleLogin(user) {
     // user comes from login response
@@ -68,35 +69,46 @@ export default function App() {
   }
 
   return (
-    <div className="app-root">
-      {!currentUser ? (
-        authMode === "login" ? (
-          <LoginPanel
-            onLogin={handleLogin}
-            onSwitchToRegister={() => setAuthMode("register")}
-            onForgotPassword={() => setAuthMode("forgot")}
-          />
-        ) : authMode === "register" ? (
-          <RegisterPanel
-            onRegister={handleLogin}
-            onSwitchToLogin={() => setAuthMode("login")}
-          />
-        ) : authMode === "forgot" ? (
-          <ForgotPassword
-            onBackToLogin={() => setAuthMode("login")}
-          />
-        ) : (
-          <ResetPassword
-            token={resetToken}
-            onBackToLogin={() => setAuthMode("login")}
-          />
-        )
-      ) : (
-        <ChatLayout
-          currentUser={currentUser}
-          onLogout={handleLogout}
-        />
-      )}
-    </div>
+    <Routes>
+      {/* Public routes */}
+      <Route
+        path="/login"
+        element={
+          currentUser
+            ? <Navigate to="/chat" />
+            : <LoginPanel onLogin={handleLogin}  onSwitchToRegister={() => setAuthMode("register")}
+            onForgotPassword={() => setAuthMode("forgot")} />
+        }
+      />
+
+      <Route
+        path="/register"
+        element={
+          currentUser
+            ? <Navigate to="/chat" />
+            : <RegisterPanel onRegister={handleLogin} onSwitchToLogin={() => setAuthMode("login")}
+             />
+        }
+      />
+
+      <Route path="/forgot-password" element={<ForgotPassword onBackToLogin={() => setAuthMode("login")} />} />
+      <Route path="/reset-password" element={<ResetPassword token={resetToken} onBackToLogin={() => setAuthMode("login")} />} />
+
+      {/* Protected route */}
+      <Route
+        path="/chat"
+        element={
+          currentUser
+            ? <ChatLayout currentUser={currentUser} onLogout={handleLogout} />
+            : <Navigate to="/login" />
+        }
+      />
+
+      {/* Default redirect */}
+      <Route
+        path="*"
+        element={<Navigate to={currentUser ? "/chat" : "/login"} />}
+      />
+    </Routes>
   );
 }

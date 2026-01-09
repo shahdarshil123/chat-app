@@ -47,7 +47,7 @@ export async function sendPasswordResetEmail(email, token){
         throw new Error("CLIENT_APP_URL is not configured");
     }
 
-    const resetUrl = `${process.env.CLIENT_APP_URL}/?token=${encodeURIComponent(token)}`;
+    const resetUrl = `${process.env.CLIENT_APP_URL}/reset-password?token=${encodeURIComponent(token)}`;
 
     await transporter.sendMail({
     from: process.env.EMAIL_FROM,

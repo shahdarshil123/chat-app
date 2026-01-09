@@ -1,24 +1,20 @@
 import { useEffect, useState } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { AUTH_API_VERSION } from "../config";
 
-export default function ResetPassword({ token, onBackToLogin }) {
+export default function ResetPassword({ onBackToLogin }) {
+    const [params] = useSearchParams();
+    const navigate = useNavigate();
+
+    const token = params.get("token");
+
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
     const [loading, setLoading] = useState("");
 
-    // useEffect(() => {
-    //     const params = new URLSearchParams(window.location.search);
-    //     const tokenFromUrl = params.get("token");
 
-    //     if (!tokenFromUrl) {
-    //         setError("Invalid or missing reset token.");
-    //         return;
-    //     }
-
-    //     setToken(tokenFromUrl);
-    // }, []);
 
     async function handleResetPassword(e) {
         e.preventDefault();
@@ -100,7 +96,11 @@ export default function ResetPassword({ token, onBackToLogin }) {
                 <button
                     type="button"
                     className="link-button"
-                    onClick={onBackToLogin}
+                    onClick={()=>{
+                        navigate("/login");
+                        onBackToLogin;
+                    }
+                    }
                 >
                     Back to login
                 </button>
