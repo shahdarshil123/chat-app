@@ -1,18 +1,23 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AUTH_API_VERSION_ENUM } from "../constants/apiVersions";
 import { AUTH_API_VERSION } from "../config";
 
 export default function LoginPanel({ onLogin, onSwitchToRegister, onForgotPassword }) {
+  const navigate = useNavigate();
 
   const [email, setEmail] = useState("alice@example.com");
   const [password, setPassword] = useState("password123");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault(); // ⭐ VERY IMPORTANT
     setError("");
 
     try {
+      setLoading(true);
+
       const res = await fetch(`http://localhost:4000/api/${AUTH_API_VERSION}/auth/login`, {
         method: "POST",
         credentials: "include",
@@ -28,13 +33,13 @@ export default function LoginPanel({ onLogin, onSwitchToRegister, onForgotPasswo
 
       const user = await res.json();
 
-      // ✅ store logged-in user (NO JWT)
-      localStorage.setItem("currentUser", JSON.stringify(user));
-
       // ✅ notify App that login succeeded
       onLogin(user);
     } catch (err) {
       setError(err.message);
+    }
+    finally{
+      setLoading(false);
     }
   }
 
@@ -52,6 +57,7 @@ export default function LoginPanel({ onLogin, onSwitchToRegister, onForgotPasswo
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
+          disabled={loading}
         />
 
         <input
@@ -61,18 +67,23 @@ export default function LoginPanel({ onLogin, onSwitchToRegister, onForgotPasswo
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
+          disabled={loading}
         />
 
          <button
           type="button"
           className="link-button forgot-link"
-          onClick={onForgotPassword}
+          onClick={()=>{
+            navigate("/forgot-password");
+            onForgotPassword;
+          }
+        }
         >
           Forgot password?
         </button>
 
-        <button className="login-button" type="submit">
-          Continue
+        <button className="login-button" type="submit" disabled={loading}>
+         {loading ? "Signing in..." : "Continue"}
         </button>
 
         <div className="login-footer">
@@ -80,7 +91,11 @@ export default function LoginPanel({ onLogin, onSwitchToRegister, onForgotPasswo
           <button
             type="button"
             className="link-button"
-            onClick={onSwitchToRegister}
+            onClick={()=>{
+              navigate("/register");
+              onSwitchToRegister;
+            }
+            }
           >
             Create account
           </button>

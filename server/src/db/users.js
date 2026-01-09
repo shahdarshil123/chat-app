@@ -168,3 +168,13 @@ export async function updateUserPassword(userId, hashedPassword) {
         },
     });
 }
+
+export async function markEmailVerified(userId){
+    return prisma.user.update({
+        where: {id: userId},
+        data: {
+            emailVerified: true,
+            emailVerifiedAt: new Date()
+        }
+    });
+}

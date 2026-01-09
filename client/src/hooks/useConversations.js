@@ -32,12 +32,7 @@ export function useConversations({ currentUserId, apiVersion }) {
           id: String(conv.id),
           title,
           members: conv.members,
-          avatar: title
-            .split(" ")
-            .slice(0, 2)
-            .map(w => w[0])
-            .join("")
-            .toUpperCase(),
+          avatar: title?.trim().split(/\s+/).slice(0, 2).map(word => word[0]).join("").toUpperCase() || "?",
           lastMessage: lastMsg?.content || "",
           lastTime: lastMsg
             ? new Date(lastMsg.createdAt).toLocaleTimeString([], {
