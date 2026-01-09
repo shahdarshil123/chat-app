@@ -42,6 +42,7 @@ export const sessionMiddleware = session({
     resave: false,
     saveUninitialized: false,
     rolling: false,
+    proxy: isProd,
     cookie: {
         httpOnly: true,
         sameSite: isProd ? "none" : "lax",
@@ -60,7 +61,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.set("trust proxy", 1);
+app.set("trust proxy", isProd ? 1 : false);
 app.use(sessionMiddleware);
 
 // API routes
