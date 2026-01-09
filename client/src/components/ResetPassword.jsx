@@ -35,7 +35,7 @@ export default function ResetPassword({ onBackToLogin }) {
 
             console.log("Token:", token);
             const res = await fetch(
-                `http://localhost:4000/api/${AUTH_API_VERSION}/auth/reset-password`,
+                `${import.meta.env.VITE_API_BASE_URL}/api/${AUTH_API_VERSION}/auth/reset-password`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },

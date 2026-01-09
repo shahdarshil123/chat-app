@@ -59,7 +59,7 @@ export default function NewChatDialog({
       setLoading(true);
       try {
         const res = await fetch(
-          `http://localhost:4000/api/${USER_API_VERSION}/user/search?query=${encodeURIComponent(
+          `${import.meta.env.VITE_API_BASE_URL}/api/${USER_API_VERSION}/user/search?query=${encodeURIComponent(
             q
           )}`,
           { credentials: "include", signal: controller.signal }
@@ -102,7 +102,7 @@ export default function NewChatDialog({
     try {
       // ✅ Your backend route: POST /conversation/direct/:userId
       const res = await fetch(
-        `http://localhost:4000/api/${CONVERSATION_API_VERSION}/conversation/direct/${selectedUser.id}`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/${CONVERSATION_API_VERSION}/conversation/direct/${selectedUser.id}`,
         {
           method: "POST",
           credentials: "include",

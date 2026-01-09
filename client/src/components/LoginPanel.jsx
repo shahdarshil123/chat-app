@@ -18,7 +18,7 @@ export default function LoginPanel({ onLogin, onSwitchToRegister, onForgotPasswo
     try {
       setLoading(true);
 
-      const res = await fetch(`http://localhost:4000/api/${AUTH_API_VERSION}/auth/login`, {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/${AUTH_API_VERSION}/auth/login`, {
         method: "POST",
         credentials: "include",
         headers: {

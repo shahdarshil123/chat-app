@@ -42,19 +42,23 @@ export const sessionMiddleware = session({
     rolling: false,
     cookie: {
         httpOnly: true,
-        sameSite: "lax",
-        secure: false,
+        sameSite: "none",   // ✅ REQUIRED for cross-origin
+        secure: true,       // ✅ REQUIRED for HTTPS
         maxAge: 1000 * 60 * 30,
     },
 });
 
 app.use(cors({
-    origin: "http://localhost:5173",
+    origin: [
+        /^https:\/\/.*\.trycloudflare\.com$/, // ✅ Cloudflare tunnels
+        "http://localhost:5173"               // ✅ local dev
+    ],
     credentials: true,
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.set("trust proxy", 1);
 app.use(sessionMiddleware);
 
 // API routes
