@@ -42,11 +42,11 @@ export default function ChatLayout({ currentUser, onLogout }) {
   const [showNewChat, setShowNewChat] = useState(false);
 
 
-useEffect(()=>{
-  if(!currentUser){
-    navigate("/login");
-  }
-}, [currentUser, navigate]);
+// useEffect(()=>{
+//   if(!currentUser){
+//     navigate("/login");
+//   }
+// }, [currentUser, navigate]);
 
   /* ================================
      Helpers

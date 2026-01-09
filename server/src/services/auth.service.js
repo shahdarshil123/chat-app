@@ -1,5 +1,5 @@
 import express from 'express';
-import { getUserByEmail, verifyPassword, updateUserLastSeen, checkUserExists, findUserForPasswordReset, updateUserPassword, getUserById } from '../db/users.js';
+import { getUserByEmail, verifyPassword, updateUserLastSeen, checkUserExists, updateUserPassword, getUserById } from '../db/users.js';
 import bcrypt from "bcrypt";
 import { emit } from '../events/eventBus.js';
 import { verifyPasswordResetToken } from './token.service.js';
@@ -19,6 +19,15 @@ export async function userLoginService(email, password) {
     return user;
 };
 
+export async function getUserService(userId){
+    if (!userId) return;
+
+    const user = await getUserById(userId);
+
+    if(!user) return;
+
+    return user;
+}
 
 export async function registerUser({
     username,

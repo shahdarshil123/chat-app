@@ -1,5 +1,5 @@
 import express from 'express';
-import { userLoginService, registerUser, resetPasswordService, forgotPasswordService } from "../../services/auth.service.js";
+import { userLoginService, registerUser, resetPasswordService, forgotPasswordService, getUserService } from "../../services/auth.service.js";
 import { verifyEmail } from '../../services/emailVerification.service.js';
 
 const router = express.Router();
@@ -72,15 +72,19 @@ router.post("/logout", (req, res) => {
 });
 
 
-router.get("/me", (req, res) => {
+router.get("/me", async (req, res) => {
     if (!req.session.userId) {
         return res.status(401).json({ error: "Not authenticated" });
     }
+    const userId = req.session?.userId;
+    const user = await getUserService(userId);
 
     res.json({
-        id: req.session.userId,
-        // optionally fetch full user from DB
-    });
+                id: user.id,
+                email: user.email,
+                displayName: user.displayName,
+                lastSeen: user.lastSeen
+            });
 });
 
 router.post("/register", async (req, res) => {

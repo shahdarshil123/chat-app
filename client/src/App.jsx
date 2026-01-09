@@ -38,15 +38,6 @@ export default function App() {
     restoreSession();
   }, []);
 
-  // useEffect(() => {
-  //   const params = new URLSearchParams(window.location.search);
-  //   const token = params.get("token");
-
-  //   if (token) {
-  //     setResetToken(token);
-  //     setAuthMode("reset");
-  //   }
-  // }, []);
 
   function handleLogin(user) {
     // user comes from login response
