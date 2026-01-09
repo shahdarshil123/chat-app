@@ -1,18 +1,26 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AUTH_API_VERSION } from "../config";
 
 export default function RegisterPanel({ onRegister, onSwitchToLogin }) {
+    const navigate = useNavigate();
+
     const [username, setUserName] = useState("");
     const [displayName, setDisplayName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
+    const [loading, setLoading] = useState("");
 
     async function handleSubmit(e) {
         e.preventDefault();
         setError("");
+        setSuccess("");
 
         try {
+            setLoading(true);
+
             const res = await fetch(
                 `http://localhost:4000/api/${AUTH_API_VERSION}/auth/register`,
                 {
@@ -33,10 +41,22 @@ export default function RegisterPanel({ onRegister, onSwitchToLogin }) {
                 throw new Error(msg || "Registration failed");
             }
 
+            setSuccess(
+                "Account created successfully. Please check your email to verify your account."
+            );
+
+            setUserName("");
+            setDisplayName("");
+            setEmail("");
+            setPassword("");
+
             const user = await res.json();
             onRegister(user);
         } catch (err) {
             setError(err.message);
+        }
+        finally{
+            setLoading(false);
         }
     }
 
@@ -46,6 +66,7 @@ export default function RegisterPanel({ onRegister, onSwitchToLogin }) {
                 <h2 className="login-title">Create account</h2>
 
                 {error && <div className="login-error">{error}</div>}
+                {success && <div className="login-success">{success}</div>}
 
                 <input
                     className="login-input"
@@ -53,6 +74,7 @@ export default function RegisterPanel({ onRegister, onSwitchToLogin }) {
                     value={displayName}
                     onChange={e => setDisplayName(e.target.value)}
                     required
+                    disabled={loading || !!success}
                 />
 
                 <input
@@ -61,6 +83,7 @@ export default function RegisterPanel({ onRegister, onSwitchToLogin }) {
                     value={username}
                     onChange={e => setUserName(e.target.value)}
                     required
+                    disabled={loading || !!success}
                 />
 
                 <input
@@ -70,6 +93,7 @@ export default function RegisterPanel({ onRegister, onSwitchToLogin }) {
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     required
+                    disabled={loading || !!success}
                 />
 
                 <input
@@ -79,10 +103,11 @@ export default function RegisterPanel({ onRegister, onSwitchToLogin }) {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     required
+                    disabled={loading || !!success}
                 />
 
-                <button className="login-button" type="submit">
-                    Create account
+                <button className="login-button" type="submit"  disabled={loading || !!success}>
+                    {loading ? "Creating account..." : "Create account"}
                 </button>
 
                 <div className="login-footer">
@@ -90,7 +115,11 @@ export default function RegisterPanel({ onRegister, onSwitchToLogin }) {
                     <button
                         type="button"
                         className="link-button"
-                        onClick={onSwitchToLogin}
+                        onClick={()=>{
+                            navigate("/login");
+                            onSwitchToLogin;
+                        }
+                    } 
                     >
                         Sign in
                     </button>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import {Routes, Route, Navigate} from "react-router-dom";
 import LoginPanel from "./components/LoginPanel";
 import ChatLayout from "./components/ChatLayout";
 import { disconnectSocket } from "./socket";
@@ -6,12 +7,14 @@ import RegisterPanel from "./components/RegisterPanel";
 
 import "./styles/chat.css";
 import ForgotPassword from "./components/ForgotPassword";
+import ResetPassword from "./components/ResetPassword";
 import { AUTH_API_VERSION } from "./config";
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authMode, setAuthMode] = useState("login"); // login | register
+  const [resetToken, setResetToken] = useState(null);
 
   // 🔑 Restore session from SERVER (not localStorage)
   useEffect(() => {
@@ -35,6 +38,7 @@ export default function App() {
     restoreSession();
   }, []);
 
+
   function handleLogin(user) {
     // user comes from login response
     setCurrentUser(user);
@@ -56,30 +60,46 @@ export default function App() {
   }
 
   return (
-    <div className="app-root">
-      {!currentUser ? (
-  authMode === "login" ? (
-    <LoginPanel
-      onLogin={handleLogin}
-      onSwitchToRegister={() => setAuthMode("register")}
-      onForgotPassword={()=> setAuthMode("forgot")}
-    />
-  ) : authMode === "register" ? (
-          <RegisterPanel
-            onRegister={handleLogin}
-            onSwitchToLogin={() => setAuthMode("login")}
-          />
-        ) : (
-          <ForgotPassword
-            onBackToLogin={() => setAuthMode("login")}
-          />
-        )
-      ) : (
-        <ChatLayout
-          currentUser={currentUser}
-          onLogout={handleLogout}
-        />
-      )}
-    </div>
+    <Routes>
+      {/* Public routes */}
+      <Route
+        path="/login"
+        element={
+          currentUser
+            ? <Navigate to="/chat" />
+            : <LoginPanel onLogin={handleLogin}  onSwitchToRegister={() => setAuthMode("register")}
+            onForgotPassword={() => setAuthMode("forgot")} />
+        }
+      />
+
+      <Route
+        path="/register"
+        element={
+          currentUser
+            ? <Navigate to="/chat" />
+            : <RegisterPanel onRegister={handleLogin} onSwitchToLogin={() => setAuthMode("login")}
+             />
+        }
+      />
+
+      <Route path="/forgot-password" element={<ForgotPassword onBackToLogin={() => setAuthMode("login")} />} />
+      <Route path="/reset-password" element={<ResetPassword token={resetToken} onBackToLogin={() => setAuthMode("login")} />} />
+
+      {/* Protected route */}
+      <Route
+        path="/chat"
+        element={
+          currentUser
+            ? <ChatLayout currentUser={currentUser} onLogout={handleLogout} />
+            : <Navigate to="/login" />
+        }
+      />
+
+      {/* Default redirect */}
+      <Route
+        path="*"
+        element={<Navigate to={currentUser ? "/chat" : "/login"} />}
+      />
+    </Routes>
   );
 }

@@ -7,6 +7,7 @@ import { registerSockets } from "./sockets.js";
 // import {RedisStore}  from "connect-redis";
 import connectRedis from "connect-redis";
 import redis from "./redis/redis.js";
+import "./events/registerHandlers.js";
 
 import { MESSAGE_API_VERSION_ENUM, AUTH_API_VERSION_ENUM, CONVERSATION_API_VERSION_ENUM, USER_API_VERSION_ENUM} from "./constants/apiVersions.js";
 import {DEFAULT_MESSAGE_API_VERSION} from "./config.js";

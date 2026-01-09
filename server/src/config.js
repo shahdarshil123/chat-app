@@ -55,3 +55,22 @@ assertValid(
   AUTH_API_VERSION_ENUM,
   "DEFAULT_AUTH_API_VERSION"
 );
+
+export const EMAIL_VERIFICATION_ENABLED=true;
+
+export const jwtConfig = {
+  emailVerification:{
+    secret: process.env.EMAIL_TOKEN_SECRET,
+    expiresIn: "30m",
+    issuer: "chat_app",
+    audience: "email-verification"
+  },
+
+  passwordReset:{
+    secret: process.env.PASSWORD_RESET_TOKEN_SECRET,
+    expiresIn: "15m",
+    issuer: "chat_app",
+    audience: "password-reset",
+  },
+};
+
