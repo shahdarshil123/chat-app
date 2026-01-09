@@ -6,12 +6,14 @@ import RegisterPanel from "./components/RegisterPanel";
 
 import "./styles/chat.css";
 import ForgotPassword from "./components/ForgotPassword";
+import ResetPassword from "./components/ResetPassword";
 import { AUTH_API_VERSION } from "./config";
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [authMode, setAuthMode] = useState("login"); // login | register
+  const [resetToken, setResetToken] = useState(null);
 
   // 🔑 Restore session from SERVER (not localStorage)
   useEffect(() => {
@@ -33,6 +35,16 @@ export default function App() {
     }
 
     restoreSession();
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+
+    if (token) {
+      setResetToken(token);
+      setAuthMode("reset");
+    }
   }, []);
 
   function handleLogin(user) {
@@ -58,19 +70,24 @@ export default function App() {
   return (
     <div className="app-root">
       {!currentUser ? (
-  authMode === "login" ? (
-    <LoginPanel
-      onLogin={handleLogin}
-      onSwitchToRegister={() => setAuthMode("register")}
-      onForgotPassword={()=> setAuthMode("forgot")}
-    />
-  ) : authMode === "register" ? (
+        authMode === "login" ? (
+          <LoginPanel
+            onLogin={handleLogin}
+            onSwitchToRegister={() => setAuthMode("register")}
+            onForgotPassword={() => setAuthMode("forgot")}
+          />
+        ) : authMode === "register" ? (
           <RegisterPanel
             onRegister={handleLogin}
             onSwitchToLogin={() => setAuthMode("login")}
           />
-        ) : (
+        ) : authMode === "forgot" ? (
           <ForgotPassword
+            onBackToLogin={() => setAuthMode("login")}
+          />
+        ) : (
+          <ResetPassword
+            token={resetToken}
             onBackToLogin={() => setAuthMode("login")}
           />
         )

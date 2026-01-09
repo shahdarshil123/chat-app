@@ -1,5 +1,5 @@
 import express from 'express';
-import { userLoginService, registerUser, resetPasswordService } from "../../services/auth.service.js";
+import { userLoginService, registerUser, resetPasswordService, forgotPasswordService } from "../../services/auth.service.js";
 import { verifyEmail } from '../../services/emailVerification.service.js';
 
 const router = express.Router();
@@ -123,12 +123,12 @@ router.post("/register", async (req, res) => {
 
 router.post("/reset-password", async (req, res) => {
     try {
-        const { username, email, password } = req.body;
-        console.log(username, email, password);
+        const { token, newPassword } = req.body;
+        console.log(token);
+        console.log(newPassword);
         await resetPasswordService({
-            username,
-            email,
-            password,
+            token,
+            password: newPassword,
         });
 
         res.json({
@@ -142,6 +142,17 @@ router.post("/reset-password", async (req, res) => {
             error: err.message,
         });
     }
+});
+
+router.post("/forgot-password", async(req, res)=>{
+    const email = req.body.email;
+    if(!email){
+        res.status(400).json({message: "Invalid email"});
+    }
+    await forgotPasswordService(email);
+    res.json({
+        message: "If email exists, a reset link has been sent.",
+    });
 });
 
 router.get("/verify-email", async(req, res)=>{

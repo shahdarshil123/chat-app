@@ -39,3 +39,27 @@ export async function sendVerificationEmail(email, token) {
 
     return true;
 }
+
+export async function sendPasswordResetEmail(email, token){
+    const baseUrl = process.env.CLIENT_APP_URL;
+    
+    if (!baseUrl) {
+        throw new Error("CLIENT_APP_URL is not configured");
+    }
+
+    const resetUrl = `${process.env.CLIENT_APP_URL}/?token=${encodeURIComponent(token)}`;
+
+    await transporter.sendMail({
+    from: process.env.EMAIL_FROM,
+    to: email,
+    subject: "Reset your password",
+    html: `
+      <p>You requested a password reset.</p>
+      <p>Click the link below to set a new password:</p>
+      <a href="${resetUrl}">Reset Password</a>
+      <p>This link expires in 15 minutes.</p>
+      <p>If you didn't request this, you can safely ignore this email.</p>
+    `,
+  });
+
+}

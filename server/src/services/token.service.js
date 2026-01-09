@@ -48,3 +48,41 @@ export function verifyEmailVerificationToken(token) {
         throw err;
     }
 }
+
+export function generatePasswordResetToken({id, email}){
+    if(!id || !email) return;
+    
+    const config = jwtConfig.passwordReset;
+
+    return jwt.sign(
+        {
+            sub: id,
+            email,
+            purpose: "password_reset",
+        },
+        config.secret,
+        {
+            expiresIn: config.expiresIn,
+            issuer: config.issuer,
+            audience: config.audience,
+        }
+    );
+}
+
+export function verifyPasswordResetToken(token){
+    if(!token) return;
+
+    const config = jwtConfig.passwordReset;
+
+    try{
+        return jwt.verify(token, config.secret, {
+        issuer: config.issuer,
+        audience: config.audience,
+    });
+    }
+    catch(err){
+        console.log("Error in verifing token: ", err);
+        throw new Error("Error: ", err);
+    }
+    
+}

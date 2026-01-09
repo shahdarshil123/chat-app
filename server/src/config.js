@@ -64,5 +64,13 @@ export const jwtConfig = {
     expiresIn: "30m",
     issuer: "chat_app",
     audience: "email-verification"
-  }
+  },
+
+  passwordReset:{
+    secret: process.env.PASSWORD_RESET_TOKEN_SECRET,
+    expiresIn: "15m",
+    issuer: "chat_app",
+    audience: "password-reset",
+  },
 };
+
