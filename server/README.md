@@ -160,5 +160,7 @@ NODE_ENV=dev
 npm install
 docker compose up --build
 npx prisma migrate deploy
+npx prisma db seed
+npx prisma studio
 ```
 
