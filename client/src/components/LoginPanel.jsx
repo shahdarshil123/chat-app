@@ -6,8 +6,8 @@ import { AUTH_API_VERSION } from "../config";
 export default function LoginPanel({ onLogin, onSwitchToRegister, onForgotPassword }) {
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState("alice@example.com");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState();
+  const [password, setPassword] = useState();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
