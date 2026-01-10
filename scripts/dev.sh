@@ -16,7 +16,12 @@ until docker compose exec server node -e "process.exit(0)" >/dev/null 2>&1; do
 done
 echo "✅ Server container is running"
 
-echo "🌱 Seeding database..."
-docker compose exec server npx prisma db seed
+echo "🌐 Waiting for client container..."
+until docker compose exec client sh -c "test -f /app/index.html || true" >/dev/null 2>&1; do
+  sleep 2
+done
+echo "✅ Client container is running"
 
 echo "🎉 Dev environment ready!"
+echo "👉 Client: http://localhost:5173"
+echo "👉 Server: http://localhost:4000"
