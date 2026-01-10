@@ -102,7 +102,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
     });
 
     const res = await fetch(
-      `http://localhost:4000/api/${MESSAGE_API_VERSION}/message/${conversationId}/messages`,
+      `${import.meta.env.VITE_API_BASE_URL}/api/${MESSAGE_API_VERSION}/message/${conversationId}/messages`,
       {
         method: "POST",
         credentials: "include",
@@ -169,7 +169,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
   useEffect(() => {
     async function loadConversations() {
       const res = await fetch(
-        `http://localhost:4000/api/${CONVERSATION_API_VERSION}/conversation/${CURRENT_USER_ID}`, { credentials: "include" }
+        `${import.meta.env.VITE_API_BASE_URL}/api/${CONVERSATION_API_VERSION}/conversation/${CURRENT_USER_ID}`, { credentials: "include" }
       );
       const json = await res.json();
       console.log(json);
@@ -240,7 +240,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
       );
 
       await fetch(
-        `http://localhost:4000/api/${CONVERSATION_API_VERSION}/conversation/${activeId}/read`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/${CONVERSATION_API_VERSION}/conversation/${activeId}/read`,
         { method: "POST", credentials: "include" }
       );
     }, 300); // small delay ensures render completed

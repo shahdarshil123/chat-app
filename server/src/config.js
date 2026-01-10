@@ -56,7 +56,7 @@ assertValid(
   "DEFAULT_AUTH_API_VERSION"
 );
 
-export const EMAIL_VERIFICATION_ENABLED=true;
+export const EMAIL_VERIFICATION_ENABLED=false;
 
 export const jwtConfig = {
   emailVerification:{

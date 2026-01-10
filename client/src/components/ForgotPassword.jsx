@@ -16,7 +16,7 @@ export default function ForgotPassword({ onBackToLogin }) {
 
         try {
             const res = await fetch(
-                `http://localhost:4000/api/${AUTH_API_VERSION}/auth/forgot-password`,
+                `${import.meta.env.VITE_API_BASE_URL}/api/${AUTH_API_VERSION}/auth/forgot-password`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },

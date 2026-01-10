@@ -13,7 +13,7 @@ export async function fetchMessages({
 
     if (version === MESSAGE_API_VERSION_ENUM.V1){
         console.log("fetching messages using API version: v1");
-        const res = await fetch(`http://localhost:4000/api/${version}/message/${conversationId}/messages`,
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/${version}/message/${conversationId}/messages`,
       { credentials: "include" });
 
     if (!res.ok) {
@@ -35,7 +35,7 @@ if (before) params.set("before", before);
 
 console.log("fetching messages using API version: v2");
 const res = await fetch(
-    `http://localhost:4000/api/${version}/message/${conversationId}/messages?${params}`,
+    `${import.meta.env.VITE_API_BASE_URL}/api/${version}/message/${conversationId}/messages?${params}`,
     {credentials: "include"}
 );
 if (!res.ok) {
@@ -51,7 +51,7 @@ export async function deleteMessage({ conversationId, messageId, version = MESSA
   }
 
   const res = await fetch(
-    `http://localhost:4000/api/${version}/message/${conversationId}/messages/${messageId}`,
+    `${import.meta.env.VITE_API_BASE_URL}/api/${version}/message/${conversationId}/messages/${messageId}`,
     { method: 'DELETE', credentials: 'include' }
   );
 

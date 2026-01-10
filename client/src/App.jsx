@@ -20,7 +20,7 @@ export default function App() {
   useEffect(() => {
     async function restoreSession() {
       try {
-        const res = await fetch(`http://localhost:4000/api/${AUTH_API_VERSION}/auth/me`, {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/${AUTH_API_VERSION}/auth/me`, {
           credentials: "include", // 🔑 REQUIRED
         });
 
@@ -45,7 +45,7 @@ export default function App() {
   }
 
   async function handleLogout() {
-    await fetch(`http://localhost:4000/api/${AUTH_API_VERSION}/auth/logout`, {
+    await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/${AUTH_API_VERSION}/auth/logout`, {
       method: "POST",
       credentials: "include", // 🔑 REQUIRED
     });

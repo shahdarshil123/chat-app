@@ -6,8 +6,8 @@ import { AUTH_API_VERSION } from "../config";
 export default function LoginPanel({ onLogin, onSwitchToRegister, onForgotPassword }) {
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState("alice@example.com");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState();
+  const [password, setPassword] = useState();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -18,7 +18,7 @@ export default function LoginPanel({ onLogin, onSwitchToRegister, onForgotPasswo
     try {
       setLoading(true);
 
-      const res = await fetch(`http://localhost:4000/api/${AUTH_API_VERSION}/auth/login`, {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/${AUTH_API_VERSION}/auth/login`, {
         method: "POST",
         credentials: "include",
         headers: {
