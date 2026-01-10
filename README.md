@@ -224,6 +224,8 @@ docker compose down -v
 
 or
 
+ensure the .env file exists in ./server and ./client then run:
+
 docker network create chat-net
 docker network ls
 

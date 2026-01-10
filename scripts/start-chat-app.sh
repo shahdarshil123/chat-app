@@ -6,16 +6,15 @@ set -e
 # -----------------------------
 if [ -z "$1" ]; then
   echo "❌ ERROR: Version not provided"
-  echo "Usage: ./start-chat-app.sh vX.Y.Z"
+  echo "Usage: ./scripts/start-chat-app.sh vX.Y.Z"
   exit 1
 fi
 
 VERSION="$1"
-
 echo "🚀 Starting Chat App Stack (version: $VERSION)"
 
 # -----------------------------
-# Config
+# Network & container names
 # -----------------------------
 NETWORK="chat-net"
 
@@ -24,12 +23,25 @@ REDIS_CONTAINER="chat_redis"
 SERVER_CONTAINER="chat-server"
 CLIENT_CONTAINER="chat-client"
 
+# -----------------------------
+# Docker images
+# -----------------------------
+SERVER_IMAGE="darshilshah0208/chat-app-server:${VERSION}"
+CLIENT_IMAGE="darshilshah0208/chat-app-client:${VERSION}"
+
+# -----------------------------
+# 🔑 POSTGRES & REDIS CONFIG (SCRIPT OWNED)
+# -----------------------------
 POSTGRES_USER="chat_user"
 POSTGRES_PASSWORD="chat_pass"
 POSTGRES_DB="chat_app"
+POSTGRES_PORT="5432"
 
-SERVER_IMAGE="darshilshah0208/chat-app-server:${VERSION}"
-CLIENT_IMAGE="darshilshah0208/chat-app-client:${VERSION}"
+REDIS_HOST="chat_redis"
+REDIS_PORT="6379"
+
+DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_CONTAINER}:${POSTGRES_PORT}/${POSTGRES_DB}"
+REDIS_URL="redis://${REDIS_HOST}:${REDIS_PORT}"
 
 # -----------------------------
 # Helpers
@@ -98,25 +110,16 @@ fi
 # Server
 # -----------------------------
 if container_running "$SERVER_CONTAINER"; then
-  echo "⚠️ Chat server already running (version unchanged)"
-elif container_exists "$SERVER_CONTAINER"; then
-  echo "🔄 Restarting chat server with version $VERSION"
-  docker rm -f "$SERVER_CONTAINER"
-  docker run -d \
-    --name "$SERVER_CONTAINER" \
-    --network "$NETWORK" \
-    -p 4000:4000 \
-    -e DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}" \
-    -e REDIS_URL="redis://${REDIS_CONTAINER}:6379" \
-    "$SERVER_IMAGE"
+  echo "⚠️ Chat server already running"
 else
   echo "🖥️ Starting chat server"
+  docker rm -f "$SERVER_CONTAINER" >/dev/null 2>&1 || true
   docker run -d \
     --name "$SERVER_CONTAINER" \
     --network "$NETWORK" \
     -p 4000:4000 \
-    -e DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}" \
-    -e REDIS_URL="redis://${REDIS_CONTAINER}:6379" \
+    -e DATABASE_URL="$DATABASE_URL" \
+    -e REDIS_URL="$REDIS_URL" \
     "$SERVER_IMAGE"
 fi
 
@@ -124,18 +127,10 @@ fi
 # Client
 # -----------------------------
 if container_running "$CLIENT_CONTAINER"; then
-  echo "⚠️ Chat client already running (version unchanged)"
-elif container_exists "$CLIENT_CONTAINER"; then
-  echo "🔄 Restarting chat client with version $VERSION"
-  docker rm -f "$CLIENT_CONTAINER"
-  docker run -d \
-    --name "$CLIENT_CONTAINER" \
-    --network "$NETWORK" \
-    -p 5173:5173 \
-    -e VITE_API_URL="http://${SERVER_CONTAINER}:4000" \
-    "$CLIENT_IMAGE"
+  echo "⚠️ Chat client already running"
 else
   echo "🌐 Starting chat client"
+  docker rm -f "$CLIENT_CONTAINER" >/dev/null 2>&1 || true
   docker run -d \
     --name "$CLIENT_CONTAINER" \
     --network "$NETWORK" \
