@@ -22,7 +22,7 @@ export default function RegisterPanel({ onRegister, onSwitchToLogin }) {
             setLoading(true);
 
             const res = await fetch(
-                `http://localhost:4000/api/${AUTH_API_VERSION}/auth/register`,
+                `${import.meta.env.VITE_API_BASE_URL}/api/${AUTH_API_VERSION}/auth/register`,
                 {
                     method: "POST",
                     credentials: "include", // ⭐ important

@@ -2,20 +2,13 @@ import { io } from "socket.io-client";
 
 let socket = null;
 
-/**
- * Connect socket using SESSION-BASED AUTH
- * Identity is derived on the SERVER from cookies
- */
 export function connectSocket() {
   if (socket) return socket;
 
-  socket = io("http://localhost:4000", {
-    withCredentials: true,      // 🔑 send session cookie
+  socket = io(import.meta.env.VITE_API_BASE_URL, {
+    withCredentials: true,
     transports: ["websocket"],
     autoConnect: true,
-    // reconnection: true,
-    // reconnectionAttempts: Infinity,
-    // reconnectionDelay: 500,
   });
 
   socket.on("connect", () => {
@@ -29,7 +22,6 @@ export function connectSocket() {
   socket.on("connect_error", (err) => {
     console.error("Socket connection error:", err.message);
 
-    // Optional: handle auth failure
     if (err.message === "Unauthorized") {
       console.warn("Socket unauthorized — session expired");
     }
@@ -38,9 +30,6 @@ export function connectSocket() {
   return socket;
 }
 
-/**
- * Disconnect socket explicitly (used on logout)
- */
 export function disconnectSocket() {
   if (socket) {
     socket.disconnect();
