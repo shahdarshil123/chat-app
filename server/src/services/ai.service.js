@@ -1,39 +1,49 @@
 // server/src/services/ai/ai.service.js
 import fetch from "node-fetch"; // OR use built-in fetch if on Node 18+
-
 export class AIService {
     constructor() {
-        // "http://ai-service:8000" acts as the internal Docker URL
-        // We use /generate because that is the route defined in your Python main.py
         this.pythonEndpoint = `${process.env.AI_SERVICE_URL}/generate`;
+        
+        // Circuit Breaker State
+        this.nextRetryTime = 0;   // Timestamp: When are we allowed to try again?
+        this.cooldown = 60000;    // 60 seconds (How long to wait if it fails)
     }
 
-    async generate({ input, conversation = [] }) {
-        try {
-            if (!input) return { suggestion: "" };
-            console.log(`[AIService] Sending request to ${this.pythonEndpoint}...`);
+    async generate({ input, conversation = [] } = {}) {
+        if (!input) return { suggestion: "" };
 
+        // 1️⃣ CHECK: Is the service currently "marked" as down?
+        // If the current time is earlier than the next allowed retry, 
+        // return immediately. DO NOT send a network request.
+        if (Date.now() < this.nextRetryTime) {
+            // Optional: console.log("Skipping AI request (Circuit Open)"); 
+            return { suggestion: "" };
+        }
+
+        try {
             const response = await fetch(this.pythonEndpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ 
-                    input, 
-                    conversation 
-                })
+                body: JSON.stringify({ input, conversation })
             });
 
             if (!response.ok) {
-                console.error(`[AIService] Python Error: ${response.status} ${response.statusText}`);
                 return { suggestion: "" };
             }
 
-            const data = await response.json();
-            return data; // Returns { suggestion: "..." }
+            // Success! Reset the circuit so we keep sending requests
+            this.nextRetryTime = 0; 
+            return await response.json();
 
         } catch (err) {
-            console.error("[AIService] Network Error - Is the Python container running?");
-            console.error(err.message);
-            return { suggestion: "" }; // Fail gracefully
+            // 2️⃣ TRIP THE CIRCUIT: If connection fails, stop trying for 60s
+            if (err.code === "ECONNREFUSED" || err.cause?.code === "ECONNREFUSED") {
+                console.warn(`[AIService] Connection failed. Disabling AI for ${this.cooldown / 1000}s.`);
+                
+                // Set the time in the future when we will allow the next try
+                this.nextRetryTime = Date.now() + this.cooldown;
+            }
+            return { suggestion: "" };
         }
     }
 }
