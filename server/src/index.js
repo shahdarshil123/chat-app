@@ -21,6 +21,7 @@ import aiRouteV1 from "./routes/v1/ai.routes.js"
 
 import messageRoutesV2 from "./routes/v2/messages.js";
 
+import aiService from "./services/ai.service.js";
 
 
 
@@ -79,12 +80,6 @@ app.use(`/api/${MESSAGE_API_VERSION_ENUM.V2}/message`, messageRoutesV2);
 const server = http.createServer(app);
 
 
-// app.use("/api/user", userRoutesV1);
-// app.use("/api/message", messageRoutesV1);
-// app.use("/api/conversation", conversationRoutesV1);
-// app.use("/api/auth", authRoutesV1);
-
-
 app.get("/", (req, res) => {
     res.json({ status: "ok" });
 });
@@ -94,4 +89,5 @@ registerSockets(server);
 const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    aiService.logStatus();
 });

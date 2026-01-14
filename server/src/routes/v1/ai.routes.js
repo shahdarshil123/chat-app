@@ -1,10 +1,9 @@
 import express from "express";
-import { AIService } from "../../services/ai.service.js";
+import aiService from "../../services/ai.service.js";
 
 const router = express.Router();
 
 // Instantiate the service once (it's stateless now)
-const aiService = new AIService();
 
 router.post("/auto-suggest", async (req, res) => {
     try {

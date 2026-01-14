@@ -1,12 +1,34 @@
 // server/src/services/ai/ai.service.js
 import fetch from "node-fetch"; // OR use built-in fetch if on Node 18+
-export class AIService {
+class AIService {
     constructor() {
         this.pythonEndpoint = `${process.env.AI_SERVICE_URL}/generate`;
         
         // Circuit Breaker State
         this.nextRetryTime = 0;   // Timestamp: When are we allowed to try again?
         this.cooldown = 60000;    // 60 seconds (How long to wait if it fails)
+    }
+
+    async logStatus() {
+        const healthUrl = `${process.env.AI_SERVICE_URL}/`;
+        console.log(healthUrl);
+
+        try {
+            // Set a short 2-second timeout so startup doesn't hang
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 2000);
+
+            const res = await fetch(healthUrl, { signal: controller.signal });
+            clearTimeout(timeout);
+
+            if (res.ok) {
+                console.log(" [AIService] Startup Check: ONLINE");
+            } else {
+                console.log(` [AIService] Startup Check: Service reachable but returned ${res.status}`);
+            }
+        } catch (err) {
+            console.log(" [AIService] Startup Check: OFFLINE (Is the Python service running?)");
+        }
     }
 
     async generate({ input, conversation = [] } = {}) {
@@ -47,3 +69,6 @@ export class AIService {
         }
     }
 }
+
+const  aiService = new AIService();
+export default aiService;

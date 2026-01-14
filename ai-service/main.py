@@ -14,6 +14,10 @@ class SuggestionRequest(BaseModel):
     input: str
     conversation: Optional[List[str]] = []
 
+@app.get("/")
+async def health_check():
+    return {"status": "online", "message": "AI Service is ready"}
+
 @app.post("/generate")
 async def generate_suggestion(req: SuggestionRequest):
     result = await strategy.generate(req.input, req.conversation)
