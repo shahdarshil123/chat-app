@@ -20,7 +20,7 @@ class SuggestionRequest(BaseModel):
 
 @app.get("/")
 async def health_check():
-    return {"status": "online", "message": "AI Service is ready", "model": os.getenv("AI_PROVIDER")}
+    return {"status": "online", "message": "AI Service is ready", "provider": os.getenv("AI_PROVIDER"), "model": os.getenv("AI_MODEL_NAME")}
 
 @app.post("/generate")
 async def generate_suggestion(req: SuggestionRequest):
