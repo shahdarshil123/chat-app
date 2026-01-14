@@ -37,7 +37,7 @@ services:
     container_name: chat_migrate
     build:
       context: ./server
-    command: npx prisma migrate deploy
+    command: sh -c "npx prisma migrate deploy && npx prisma db seed"
     env_file:
       - ./server/.env
     depends_on:
@@ -60,6 +60,7 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+    restart: unless-stopped
 
   # ------------------------
   # Frontend Client
@@ -70,8 +71,11 @@ services:
       context: ./client
     ports:
       - "5173:5173"
+    env_file:
+      - ./client/.env
     depends_on:
       - server
+    restart: unless-stopped
 
   # ollama:
   #   image: ollama/ollama

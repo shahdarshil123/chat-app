@@ -9,7 +9,7 @@ export function useConversations({ currentUserId, apiVersion }) {
   ================================ */
   const reloadConversations = useCallback(async () => {
     const res = await fetch(
-      `http://localhost:4000/api/${apiVersion}/conversation/${currentUserId}`,
+      `${import.meta.env.VITE_API_BASE_URL}/api/${apiVersion}/conversation/${currentUserId}`,
       { credentials: "include" }
     );
     const json = await res.json();
@@ -32,12 +32,7 @@ export function useConversations({ currentUserId, apiVersion }) {
           id: String(conv.id),
           title,
           members: conv.members,
-          avatar: title
-            .split(" ")
-            .slice(0, 2)
-            .map(w => w[0])
-            .join("")
-            .toUpperCase(),
+          avatar: title?.trim().split(/\s+/).slice(0, 2).map(word => word[0]).join("").toUpperCase() || "?",
           lastMessage: lastMsg?.content || "",
           lastTime: lastMsg
             ? new Date(lastMsg.createdAt).toLocaleTimeString([], {
@@ -70,7 +65,7 @@ export function useConversations({ currentUserId, apiVersion }) {
 
   async function markAsRead(conversationId) {
     await fetch(
-      `http://localhost:4000/api/${apiVersion}/conversation/${conversationId}/read`,
+      `${import.meta.env.VITE_API_BASE_URL}/api/${apiVersion}/conversation/${conversationId}/read`,
       { method: "POST", credentials: "include" }
     );
 

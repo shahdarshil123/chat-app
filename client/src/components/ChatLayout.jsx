@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import ConversationList from "./ConversationList.jsx";
 import ConversationHeader from "./ConversationHeader.jsx";
 import MessageFeed from "./MessageFeed.jsx";
@@ -7,7 +8,7 @@ import NewChatDialog from "./NewChatDialog.jsx";
 
 import { fetchMessages } from "../api/messages.js";
 import { connectSocket } from "../socket.js";
-import { addToOutbox, getOutboxMessages, removeFromOutbox } from "../db/outbox.js";
+
 
 import { MESSAGE_API_VERSION_ENUM, AUTH_API_VERSION_ENUM, USER_API_VERSION_ENUM, CONVERSATION_API_VERSION_ENUM } from "../constants/apiVersions.js";
 import { MESSAGE_API_VERSION, CONVERSATION_API_VERSION, AUTH_API_VERSION, USER_API_VERSION } from "../config.js";
@@ -21,7 +22,7 @@ import { useConversations } from "../hooks/useConversations.js";
    Chat Layout
 ================================ */
 export default function ChatLayout({ currentUser, onLogout }) {
-  ;
+  const navigate = useNavigate();
   console.log("Message API version:", MESSAGE_API_VERSION);
   const CURRENT_USER_ID = currentUser.id;
 
@@ -39,7 +40,11 @@ export default function ChatLayout({ currentUser, onLogout }) {
   const [showNewChat, setShowNewChat] = useState(false);
 
 
-
+// useEffect(()=>{
+//   if(!currentUser){
+//     navigate("/login");
+//   }
+// }, [currentUser, navigate]);
 
   /* ================================
      Helpers
@@ -95,7 +100,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
     });
 
     const res = await fetch(
-      `http://localhost:4000/api/${MESSAGE_API_VERSION}/message/${conversationId}/messages`,
+      `${import.meta.env.VITE_API_BASE_URL}/api/${MESSAGE_API_VERSION}/message/${conversationId}/messages`,
       {
         method: "POST",
         credentials: "include",
@@ -162,7 +167,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
   useEffect(() => {
     async function loadConversations() {
       const res = await fetch(
-        `http://localhost:4000/api/${CONVERSATION_API_VERSION}/conversation/${CURRENT_USER_ID}`, { credentials: "include" }
+        `${import.meta.env.VITE_API_BASE_URL}/api/${CONVERSATION_API_VERSION}/conversation/${CURRENT_USER_ID}`, { credentials: "include" }
       );
       const json = await res.json();
       console.log(json);
@@ -233,7 +238,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
       );
 
       await fetch(
-        `http://localhost:4000/api/${CONVERSATION_API_VERSION}/conversation/${activeId}/read`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/${CONVERSATION_API_VERSION}/conversation/${activeId}/read`,
         { method: "POST", credentials: "include" }
       );
     }, 300); // small delay ensures render completed
@@ -446,7 +451,11 @@ export default function ChatLayout({ currentUser, onLogout }) {
             <div className="avatar" title={currentUser.displayName || currentUser.username}>
               {getInitials(currentUser.displayName || currentUser.username)}
             </div>
-            <button className="logout-button" onClick={onLogout}>
+            <button className="logout-button" onClick={ async () => {
+                await onLogout();
+                navigate("/login");
+                }
+              }>
               Logout
             </button>
           </div>

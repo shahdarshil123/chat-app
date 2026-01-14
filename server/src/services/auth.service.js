@@ -1,6 +1,8 @@
 import express from 'express';
-import { getUserByEmail, verifyPassword, updateUserLastSeen, checkUserExists, findUserForPasswordReset, updateUserPassword } from '../db/users.js';
+import { getUserByEmail, verifyPassword, updateUserLastSeen, checkUserExists, updateUserPassword, getUserById } from '../db/users.js';
 import bcrypt from "bcrypt";
+import { emit } from '../events/eventBus.js';
+import { verifyPasswordResetToken } from './token.service.js';
 
 export async function userLoginService(email, password) {
     if (!email || !password) return;
@@ -17,6 +19,15 @@ export async function userLoginService(email, password) {
     return user;
 };
 
+export async function getUserService(userId){
+    if (!userId) return;
+
+    const user = await getUserById(userId);
+
+    if(!user) return;
+
+    return user;
+}
 
 export async function registerUser({
     username,
@@ -44,20 +55,30 @@ export async function registerUser({
         },
     });
 
+    emit("USER_CREATED", {
+        userId: user.id,
+        email: user.email,
+    });
     // 4️⃣ Return safe user object
     return user;
 }
 
 export async function resetPasswordService({
-    username,
-    email,
+    token,
     password,
 }) {
-    if (!username || !email || !password) {
+    if (!token || !password) {
         throw new Error("Missing required fields");
     }
 
-    const user = await findUserForPasswordReset({ username, email });
+    const payload = verifyPasswordResetToken(token);
+
+    if(payload.purpose !== "password_reset"){
+        throw new Error("Invalid reset token");
+    }
+
+    //const user = await findUserForPasswordReset({ username, email });
+    const user = await getUserById(payload.sub);
 
     if (!user) {
         throw new Error("User not found");
@@ -70,4 +91,15 @@ export async function resetPasswordService({
     return {
         success: true,
     };
+}
+
+export async function forgotPasswordService(email){
+    const user = await getUserByEmail(email);
+
+    if(!user) return;
+
+    emit("PASSWORD_RESET_REQUESTED", {
+        userId: user.id,
+        email: user.email,
+    });
 }

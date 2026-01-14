@@ -10,21 +10,22 @@ This document includes a **navigable table of contents** for easier understandin
 
 1. [Overview](#overview)  
 2. [Features](#features)  
-3. [Architecture Overview](#architecture-overview)  
-4. [Core Domain Concepts](#core-domain-concepts)  
+3. [Architecture Diagram](#architecture-diagram)
+4. [Repository Structure](#repository-structure)  
+5. [Core Domain Concepts](#core-domain-concepts)  
    - [Users](#users)  
    - [Conversations](#conversations)  
    - [Messages](#messages)  
-5. [Message Flow](#message-flow)  
-6. [Redis Integration](#redis-integration)  
+6. [Message Flow](#message-flow)  
+7. [Redis Integration](#redis-integration)  
    - [Session Management](#session-management)  
    - [Online User Tracking](#online-user-tracking)  
-7. [Offline Messaging with IndexedDB](#offline-messaging-with-indexeddb)  
-8. [Message Ordering & Reliability](#message-ordering--reliability)  
-9. [Reconnection & Recovery](#reconnection--recovery)  
-10. [Technology Stack](#technology-stack)  
-11. [Docker & Development Workflow](#docker--development-workflow)  
-12. [Core Docker Compose Commands](#core-docker-compose-commands)
+8. [Offline Messaging with IndexedDB](#offline-messaging-with-indexeddb)  
+9. [Message Ordering & Reliability](#message-ordering--reliability)  
+10. [Reconnection & Recovery](#reconnection--recovery)  
+11. [Technology Stack](#technology-stack)  
+12. [Docker & Development Workflow](#docker--development-workflow)  
+13. [Core Docker Compose Commands](#core-docker-compose-commands)
 ---
 
 ## Overview
@@ -47,7 +48,13 @@ This chat system supports **one-to-one conversations**, **real-time updates**, *
 
 ---
 
-## Architecture Overview
+## Architecture Diagram
+
+![Architecture-Diagram](./architecture-diagram.png)
+
+---
+
+## Repository Structure
 
 ```
 Client (React)
@@ -216,6 +223,8 @@ docker compose exec server npx prisma studio --port 5555
 docker compose down -v
 
 or
+
+ensure the .env file exists in ./server and ./client then run:
 
 docker network create chat-net
 docker network ls
