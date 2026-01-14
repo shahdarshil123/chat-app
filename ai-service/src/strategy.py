@@ -107,6 +107,7 @@ Completion:
         if conversation is None:
             conversation = []
 
+        print("Input text ", input_text)
         if not self.should_invoke_llm(input_text):
             return {"suggestion": ""}
 
@@ -120,4 +121,5 @@ Completion:
 
         # 3. Format
         final_suggestion = f" {completion}" if space_needed else completion
+        print("suggetion: ", final_suggestion)
         return {"suggestion": final_suggestion}

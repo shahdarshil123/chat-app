@@ -1,28 +1,25 @@
 import express from "express";
 import { AIService } from "../../services/ai/ai.service.js";
-import { OllamaAdapter } from "../../services/ai/adapters/ollama.adapter.js";
-import { AutoSuggestStrategy } from "../../services/ai/strategies/autoSuggest.strategy.js";
-import { QuickReplyStrategy } from "../../services/ai/strategies/quickReply.strategy.js";
 
 const router = express.Router();
 
-const llm = new OllamaAdapter({ model: "mistral" });
+// Instantiate the service once (it's stateless now)
+const aiService = new AIService();
 
 router.post("/auto-suggest", async (req, res) => {
-    console.log(req.body);
-    const service = new AIService(
-        new AutoSuggestStrategy(llm)
-    );
-    const response = await service.generate(req.body) || {};
-    console.log(response);
-    res.json(response);
-});
+    try {
+        const input = req.body.input;
+        const conversation = req.body.conversation;
 
-router.post("/quick-replies", async (req, res) => {
-    const service = new AIService(
-        new QuickReplyStrategy(llm)
-    );
-    res.json(await service.generate(req.body) || {});
+        // Forward the request body { input, conversation } to Python
+        const response = await aiService.generate({input, conversation});
+        
+        // Return the response from Python directly to the frontend
+        res.json(response || {});
+    } catch (error) {
+        console.error("Auto-suggest error:", error);
+        res.status(500).json({ error: "AI Service failed" });
+    }
 });
 
 export default router;

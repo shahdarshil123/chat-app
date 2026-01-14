@@ -19,6 +19,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - chat-app-network
   
   redis:
     image: redis:7
@@ -29,6 +31,8 @@ services:
       - redis_data:/data
     command: redis-server --appendonly yes
     restart: unless-stopped
+    networks:
+      - chat-app-network
 
   # ------------------------
   # Prisma Migration Service (one-time)
@@ -44,6 +48,8 @@ services:
       db:
         condition: service_healthy
     restart: "no"
+    networks:
+      - chat-app-network
 
   # ------------------------
   # Backend Server
@@ -61,6 +67,8 @@ services:
       migrate:
         condition: service_completed_successfully
     restart: unless-stopped
+    networks:
+      - chat-app-network
 
   # ------------------------
   # Frontend Client
@@ -76,16 +84,25 @@ services:
     depends_on:
       - server
     restart: unless-stopped
+    networks:
+      - chat-app-network
 
   ai-service:
-    build: ./ai-service
-    container_name: chat-ai-service
+    build: 
+      context: ./ai-service
+    container_name: chat_ai_service
     ports:
       - "8000:8000"
     env_file:
       - ./ai-service/.env
+    networks:
+      - chat-app-network
 
 volumes:
   pgdata:
   redis_data:
-  
+
+# Define the network at the bottom
+networks:
+  chat-app-network:
+    driver: bridge
