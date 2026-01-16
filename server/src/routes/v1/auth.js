@@ -1,10 +1,13 @@
 import express from 'express';
 import { userLoginService, registerUser, resetPasswordService, forgotPasswordService, getUserService } from "../../services/auth.service.js";
 import { verifyEmail } from '../../services/emailVerification.service.js';
+import { validateBody } from "../../middleware/validateBody.js";
+import { loginSchema, registerSchema, resetPasswordSchema, forgotPasswordSchema, verifyEmailSchema } from "../../schemas/auth.schema.js";
 
 const router = express.Router();
 
-router.post('/login', async (req, res) => {
+
+router.post('/login', validateBody(loginSchema), async (req, res) => {
     try {
         const { email, password } = req.body;
 
@@ -50,7 +53,7 @@ router.post("/logout", (req, res) => {
     const userId = req.session?.userId;
 
     req.session.destroy(err => {
-        if (err) {
+        if (err) {  
             console.error("Logout error:", err);
             return res.status(500).json({ error: "Logout failed" });
         }
@@ -87,7 +90,7 @@ router.get("/me", async (req, res) => {
             });
 });
 
-router.post("/register", async (req, res) => {
+router.post("/register", validateBody(registerSchema), async (req, res) => {
     try {
         const { username, email, password, displayName } = req.body;
 
@@ -125,7 +128,7 @@ router.post("/register", async (req, res) => {
     }
 });
 
-router.post("/reset-password", async (req, res) => {
+router.post("/reset-password", validateBody(resetPasswordSchema), async (req, res) => {
     try {
         const { token, newPassword } = req.body;
         console.log(token);
@@ -148,7 +151,7 @@ router.post("/reset-password", async (req, res) => {
     }
 });
 
-router.post("/forgot-password", async(req, res)=>{
+router.post("/forgot-password",validateBody(forgotPasswordSchema), async(req, res)=>{
     const email = req.body.email;
     if(!email){
         res.status(400).json({message: "Invalid email"});
@@ -159,7 +162,7 @@ router.post("/forgot-password", async(req, res)=>{
     });
 });
 
-router.get("/verify-email", async(req, res)=>{
+router.get("/verify-email", validateBody(verifyEmailSchema), async(req, res)=>{
     try{
         const {token} = req.query;
 

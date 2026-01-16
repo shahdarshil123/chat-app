@@ -21,8 +21,17 @@ import authRoutesV1 from "./routes//v1/auth.js";
 import messageRoutesV2 from "./routes/v2/messages.js";
 
 
+import swaggerJsdoc from 'swagger-jsdoc';
+import swaggerUi from 'swagger-ui-express';
+import { generateOpenApiSpec } from "./docs/openapi.js";
+
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename)
 
 const app = express();
 
@@ -64,6 +73,10 @@ app.use(express.urlencoded({ extended: true }));
 app.set("trust proxy", isProd ? 1 : false);
 app.use(sessionMiddleware);
 
+const swaggerSpec = generateOpenApiSpec();
+
+// 2. Add the Swagger Middleware (place this before your routes)
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // API routes
 //v1
 app.use(`/api/${USER_API_VERSION_ENUM.V1}/user`, userRoutesV1);
