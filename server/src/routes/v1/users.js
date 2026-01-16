@@ -1,10 +1,12 @@
 import express from 'express';
 import { requireAuth } from '../../middleware/requireAuth.js';
 import { createUserService, getLastSeenService, getUserByIdService, searchUsersService, updateUserLastSeenService } from '../../services/user.service.js';
+import { validate } from '../../middleware/validate.js';
+import { searchUserSchema,createUserSchema, userIdParamSchema } from '../../schemas/users.schema.js';
 
 const router = express.Router();
 
-router.get("/search", requireAuth, async (req, res) => {
+router.get("/search", requireAuth, validate({ query: searchUserSchema }), async (req, res) => {
     try {
         console.log(req.query);
         
@@ -38,7 +40,7 @@ router.get("/search", requireAuth, async (req, res) => {
     }
 });
 
-router.post("/create", requireAuth, async (req, res) => {
+router.post("/create", requireAuth, validate(createUserSchema), async (req, res) => {
     try {
         const { username, email, password, displayName } = req.body;
 
@@ -75,7 +77,7 @@ router.post("/create", requireAuth, async (req, res) => {
 });
 
 
-router.get('/:id', requireAuth, async (req, res) => {
+router.get('/:id', requireAuth, validate({params: userIdParamSchema}), async (req, res) => {
     try {
         const userId = parseInt(req.params.id);
         const user = await getUserByIdService(userId);
@@ -93,7 +95,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 });
 
 
-router.post("/:id/last-seen", requireAuth, async (req, res) => {
+router.post("/:id/last-seen", requireAuth, validate({params: userIdParamSchema}), async (req, res) => {
     try {
         const userId = parseInt(req.params.id);
 
@@ -114,7 +116,7 @@ router.post("/:id/last-seen", requireAuth, async (req, res) => {
     }
 });
 
-router.get("/:id/last-seen", requireAuth, async (req, res) => {
+router.get("/:id/last-seen", requireAuth, validate({params: userIdParamSchema}), async (req, res) => {
     try {
         const userId = parseInt(req.params.id);
 
