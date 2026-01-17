@@ -20,8 +20,13 @@ export const validate = (schemas) => (req, res, next) => {
         next();
     } catch (err) {
         if (err instanceof z.ZodError) {
+
+            const message = err._zod?.def?.[0]?.message 
+                            || err.issues?.[0]?.message 
+                            || "Invalid input data";
+
             return res.status(400).json({
-                error: err._zod.def[0].message,
+                error: message,
             });
         }
         console.error("Validation Error:", err);
