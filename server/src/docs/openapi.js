@@ -6,6 +6,7 @@ import { registry } from './registry.js';
 import '../schemas/auth.schema.js';
 import '../schemas/users.schema.js';
 import '../schemas/conversations.schema.js'; 
+import '../schemas/messages.schema.js';
 
 export function generateOpenApiSpec() {
     const generator = new OpenApiGeneratorV3(registry.definitions);

@@ -62,5 +62,13 @@ export async function updateLastConversationReadAtService(userId, conversationId
     return response;
 };
 
+export async function  getConversationByIdService(conversationId){
+    if(!conversationId) return;
 
+    const conversation = await getConversationById(conversationId);
+
+    if(!conversation) return;
+
+    return conversation;
+}
 

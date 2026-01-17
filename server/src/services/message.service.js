@@ -1,9 +1,8 @@
 import { saveMessage, getMessages, getMessagesV2, getMessageById, deleteMessage } from "../db/messages.js";
-import { getConversationMembers, updateConversationUpdateAt } from "../db/conversations.js";
+import { checkUserExistsInConversation, getConversationMembers, updateConversationUpdateAt } from "../db/conversations.js";
 import { io, getUserSocketIds } from '../sockets.js';
 
 export async function sendMessageService(conversationId, senderId, content) {
-
 
     // Save to db
     const message = await saveMessage({
@@ -15,14 +14,14 @@ export async function sendMessageService(conversationId, senderId, content) {
     // await updateConversationUpdateAt();
 
     // 2️⃣ Fetch conversation members
-    const conversation = await getConversationMembers(conversationId);
+    const conversationMembers = await getConversationMembers(conversationId);
 
-    if (!conversation) {
+    if (!conversationMembers) {
         throw new Error("Conversation not found");
     }
 
     // 3️⃣ Emit message to ALL members (including sender)
-    for (const member of conversation.members) {
+    for (const member of conversationMembers.members) {
         // const sockets = onlineUsers.get(member.userId);
 
         const sockets = await getUserSocketIds(member.userId);
@@ -94,19 +93,19 @@ export async function getMessageServiceV2(
 }
 
 export async function deleteMessageService(messageId, requesterId) {
-    const message = await getMessageById(Number(messageId));
-    if (!message) {
-        const err = new Error("Message not found");
-        err.status = 404;
-        throw err;
-    }
+    // const message = await getMessageById(Number(messageId));
+    // if (!message) {
+    //     const err = new Error("Message not found");
+    //     err.status = 404;
+    //     throw err;
+    // }
 
     // Only allow sender to delete their own message for now
-    if (Number(message.senderId) !== Number(requesterId)) {
-        const err = new Error("Not authorized to delete this message");
-        err.status = 403;
-        throw err;
-    }
+    // if (Number(message.senderId) !== Number(requesterId)) {
+    //     const err = new Error("Not authorized to delete this message");
+    //     err.status = 403;
+    //     throw err;
+    // }
 
     const deleted = await deleteMessage(Number(messageId));
 
@@ -131,4 +130,22 @@ export async function deleteMessageService(messageId, requesterId) {
     }
 
     return deleted;
+}
+
+export async function checkUserExistsForConversationService(userId, conversationId){
+    if(!userId || !conversationId) return;
+
+    const conversationMember = await checkUserExistsInConversation(userId, conversationId);
+
+    return conversationMember;
+}
+
+export async function getMessageByIdService(messageId){
+    if(!messageId) return;
+
+    const message = await getMessageById(messageId);
+
+    if (!message) return;
+
+    return message;
 }

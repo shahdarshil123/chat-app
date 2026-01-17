@@ -202,3 +202,14 @@ export async function getConversationById(conversationId) {
         }
     });
 }
+
+export async function checkUserExistsInConversation(userId, conversationId){
+    return await prisma.conversationMember.findUnique({
+        where: {conversationId_userId: {conversationId: conversationId,
+                userId: userId,
+        }},
+        select: {conversationId: true,
+            userId: true,
+        }
+    })
+}
