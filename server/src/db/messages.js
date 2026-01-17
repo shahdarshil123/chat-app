@@ -99,7 +99,7 @@ export async function getMessagesV2({
 export async function getMessageById(id) {
     if (id === null || id === undefined) return null;
     return prisma.message.findUnique({
-        where: { id: Number(id) },
+        where: { id: id },
     });
 }
 

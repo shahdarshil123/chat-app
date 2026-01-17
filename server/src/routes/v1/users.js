@@ -1,23 +1,17 @@
 import express from 'express';
 import { requireAuth } from '../../middleware/requireAuth.js';
-import { createUserService, getLastSeenService, getUserByIdService, searchUsersService, updateUserLastSeenService } from '../../services/user.service.js';
+import { getLastSeenService, getUserByIdService, searchUsersService, updateUserLastSeenService } from '../../services/user.service.js';
+import { validate } from '../../middleware/validate.js';
+import { searchUserSchema, userIdParamSchema } from '../../schemas/users.schema.js';
 
 const router = express.Router();
 
-router.get("/search", requireAuth, async (req, res) => {
+router.get("/search", requireAuth, validate({ query: searchUserSchema }), async (req, res) => {
     try {
-        console.log(req.query);
         
         const {query}  = req.query;
         const currentUserId = req.session?.userId;
 
-        console.log("Running the search API");
-        console.log(query);
-        console.log(currentUserId);
-
-        if (!currentUserId) {
-            return res.status(401).send("Not authenticated");
-        }
 
         if (!query || !query.trim()) {
             return res.json([]);
@@ -29,55 +23,23 @@ router.get("/search", requireAuth, async (req, res) => {
             limit: 10,
         });
 
-        console.log(users);
-
         res.json(users);
     } catch (err) {
-        console.error("User search error:", err);
         res.status(500).send("Internal server error");
     }
 });
 
-router.post("/create", requireAuth, async (req, res) => {
+
+
+router.get('/:id', requireAuth, validate({params: userIdParamSchema}), async (req, res) => {
     try {
-        const { username, email, password, displayName } = req.body;
+        const userId = parseInt(req.params?.id);
+        const sessionUserId = req.session?.userId;
 
-        // Validation logic:
-        if (!username) {
-            console.log("Invalid Username")
-            return res.status(400).json({ error: "Invalid Username" });
-        }
-        if (!email) {
-            console.log("Invalid Email")
-            return res.status(400).json({ error: "Invalid Email" });
-        }
-        if (!password) {
-            console.log("Invalid Password")
-            return res.status(400).json({ error: "Invalid Password" });
-        }
-        if (!displayName) {
-            console.log("Invalid Display Name");
-            return res.status(400).json({ error: "Invalid Display Name" });
+        if (userId !== sessionUserId) {
+            return res.status(403).json({ error: "You can only get your own details" });
         }
 
-        const user = await createUserService(username, email, password, displayName);
-        console.log(user);
-        if (!user) {
-            res.status(500).json({ error: 'Failed to create the user' });
-        }
-
-        res.json({ user });
-    }
-    catch (error) {
-        console.error('Get user error:', error);
-        res.status(500).json({ error: 'Failed to get the user' });
-    }
-});
-
-
-router.get('/:id', requireAuth, async (req, res) => {
-    try {
-        const userId = parseInt(req.params.id);
         const user = await getUserByIdService(userId);
         if (!user) {
             return res.status(404).json({
@@ -87,36 +49,40 @@ router.get('/:id', requireAuth, async (req, res) => {
         res.json({ user });
     }
     catch (error) {
-        console.error('Get user error:', error);
         res.status(500).json({ error: 'Failed to get the user' });
     }
 });
 
 
-router.post("/:id/last-seen", requireAuth, async (req, res) => {
+router.patch("/:id/last-seen", requireAuth, validate({params: userIdParamSchema}), async (req, res) => {
     try {
         const userId = parseInt(req.params.id);
+        const sessionUserId = req.session?.userId;
 
-        if (!userId) {
-            return res.status(400).json({ error: "userId is required" });
+        if (userId !== sessionUserId) {
+            return res.status(403).json({ error: "You can only update your own status" });
         }
 
         const updated = await updateUserLastSeenService(userId);
 
         if (!updated) {
-            res.status(500).json({ error: 'Failed to create the user' });
+            res.status(404).json({ error: 'User not found' });
         }
 
         res.json(updated);
     } catch (error) {
-        console.error("Update lastSeen error:", error);
         res.status(500).json({ error: "Failed to update lastSeen" });
     }
 });
 
-router.get("/:id/last-seen", requireAuth, async (req, res) => {
+router.get("/:id/last-seen", requireAuth, validate({params: userIdParamSchema}), async (req, res) => {
     try {
         const userId = parseInt(req.params.id);
+        const sessionUserId = req.session?.userId;
+
+        if (userId !== sessionUserId) {
+            return res.status(403).json({ error: "You can only see your own last seen" });
+        }
 
         const user = await getLastSeenService(userId);
 
@@ -126,7 +92,6 @@ router.get("/:id/last-seen", requireAuth, async (req, res) => {
 
         res.json(user);
     } catch (error) {
-        console.error("Get lastSeen error:", error);
         res.status(500).json({ error: "Failed to get lastSeen" });
     }
 });

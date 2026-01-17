@@ -33,7 +33,7 @@ export default function ResetPassword({ onBackToLogin }) {
         try {
             setLoading(true);
 
-            console.log("Token:", token);
+            // console.log("Token:", token);
             const res = await fetch(
                 `${import.meta.env.VITE_API_BASE_URL}/api/${AUTH_API_VERSION}/auth/reset-password`,
                 {

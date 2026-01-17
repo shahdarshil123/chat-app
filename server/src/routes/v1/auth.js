@@ -1,14 +1,16 @@
 import express from 'express';
 import { userLoginService, registerUser, resetPasswordService, forgotPasswordService, getUserService } from "../../services/auth.service.js";
 import { verifyEmail } from '../../services/emailVerification.service.js';
+import { validate } from '../../middleware/validate.js';
+import { loginSchema, registerSchema, resetPasswordSchema, forgotPasswordSchema, verifyEmailSchema} from "../../schemas/auth.schema.js";
+import { checkUserExistsByUsernameService, getUserByEmailService, getUserByUsernameService, checkUserExistsByEmailService } from '../../services/user.service.js';
 
 const router = express.Router();
 
-router.post('/login', async (req, res) => {
+
+router.post('/login', validate({body: loginSchema}), async (req, res) => {
     try {
         const { email, password } = req.body;
-
-        console.log(email, password);
 
         if (!email || !password) {
             return res.status(400).json({
@@ -17,7 +19,6 @@ router.post('/login', async (req, res) => {
         }
 
         const user = await userLoginService(email, password);
-        console.log(user);
 
         if (!user) {
             return res.status(401).json({ error: 'Invalid credentials' });
@@ -27,7 +28,6 @@ router.post('/login', async (req, res) => {
 
         req.session.save(async (err) => {
             if (err) {
-                console.error('Session save error:', err);
                 return res.status(500).json({ error: 'Session save failed' });
             }
 
@@ -41,7 +41,6 @@ router.post('/login', async (req, res) => {
         });
     }
     catch (error) {
-        console.error('Login error:', error);
         res.status(500).json({ error: 'Login failed' });
     }
 });
@@ -50,8 +49,7 @@ router.post("/logout", (req, res) => {
     const userId = req.session?.userId;
 
     req.session.destroy(err => {
-        if (err) {
-            console.error("Logout error:", err);
+        if (err) {  
             return res.status(500).json({ error: "Logout failed" });
         }
 
@@ -87,7 +85,7 @@ router.get("/me", async (req, res) => {
             });
 });
 
-router.post("/register", async (req, res) => {
+router.post("/register", validate({body: registerSchema}), async (req, res) => {
     try {
         const { username, email, password, displayName } = req.body;
 
@@ -98,6 +96,16 @@ router.post("/register", async (req, res) => {
 
         if (password.length < 6) {
             return res.status(400).send("Password must be at least 6 characters");
+        }
+
+        const userByEmail = await checkUserExistsByEmailService(email);
+        if(userByEmail){
+            return res.status(409).json({error: `User with email:${email} already exists`});
+        }
+        
+        const userByUsername = await checkUserExistsByUsernameService(username);
+        if(userByUsername){
+            return res.status(409).json({error: `User with username: ${username} already exists`});
         }
 
         // 2️⃣ Register user
@@ -120,16 +128,13 @@ router.post("/register", async (req, res) => {
                 .send("User with this email or username already exists");
         }
 
-        console.error("Register error:", err);
         return res.status(500).send("Internal server error");
     }
 });
 
-router.post("/reset-password", async (req, res) => {
+router.post("/reset-password", validate({body: resetPasswordSchema}), async (req, res) => {
     try {
         const { token, newPassword } = req.body;
-        console.log(token);
-        console.log(newPassword);
         await resetPasswordService({
             token,
             password: newPassword,
@@ -140,15 +145,13 @@ router.post("/reset-password", async (req, res) => {
             message: "Password reset successfully",
         });
     } catch (err) {
-        console.error("Reset password error:", err.message);
-
         res.status(400).json({
             error: err.message,
         });
     }
 });
 
-router.post("/forgot-password", async(req, res)=>{
+router.post("/forgot-password", validate({body: forgotPasswordSchema}), async(req, res)=>{
     const email = req.body.email;
     if(!email){
         res.status(400).json({message: "Invalid email"});
@@ -159,7 +162,7 @@ router.post("/forgot-password", async(req, res)=>{
     });
 });
 
-router.get("/verify-email", async(req, res)=>{
+router.get("/verify-email", validate({query: verifyEmailSchema}), async(req, res)=>{
     try{
         const {token} = req.query;
 

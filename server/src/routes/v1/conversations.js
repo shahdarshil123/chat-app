@@ -1,29 +1,20 @@
 import express from 'express';
-import { getOrCreateDirectConversationService, getUserConversationsService, updateLastConversationReadAtService, createConversationService, } from '../../services/conversation.service.js';
+import { getUserConversationsService, updateLastConversationReadAtService, createConversationService, } from '../../services/conversation.service.js';
+import { getUserByIdService } from '../../services/user.service.js';
 import { requireAuth } from '../../middleware/requireAuth.js';
+import { validate } from '../../middleware/validate.js';
+import { userIdParamSchema, conversationIdParamSchema } from '../../schemas/conversations.schema.js';
+
 const router = express.Router();
 
-router.post("/directChat", requireAuth, async (req, res) => {
-    try {
-        const userId1 = parseInt(req.body.userId1);
-        const userId2 = parseInt(req.body.userId2);
 
-        const conversation = await getOrCreateDirectConversationService(userId1, userId2);
-        res.status(200).json({ conversation });
-    }
-    catch (error) {
-        console.error('Post conversations error:', error);
-        res.status(500).json({ error: 'Failed to create conversations' });
-    }
-});
-
-router.post("/direct/:userId", requireAuth, async (req, res) => {
+router.post("/direct/:userId", requireAuth, validate({ params: userIdParamSchema }), async (req, res) => {
     try {
         const currentUserId = req.session.userId;
         const targetUserId = Number(req.params.userId);
 
-        if (!Number.isInteger(targetUserId)) {
-            return res.status(400).json({ error: "Invalid targetUserId" });
+        if (currentUserId === targetUserId) {
+            return res.status(400).json({ error: "You cannot start a conversation with yourself" });
         }
 
         const result = await createConversationService(
@@ -31,22 +22,34 @@ router.post("/direct/:userId", requireAuth, async (req, res) => {
             targetUserId
         );
 
-        // ✅ ALWAYS send response
+        if (!result) {
+            return res.status(404).json({ error: "Target user not found" });
+        }
+
         return res.json({
             exists: result.exists,
             conversationId: result.conversation.id,
         });
 
     } catch (err) {
-        console.error("Create direct conversation error:", err);
+        if (err.code === 'P2003' || err.code === '23503') {
+            return res.status(404).json({ error: "Target user not found" });
+        }
+
         res.status(500).json({ error: "Failed to create conversation" });
     }
 });
 
-router.get("/:userId", requireAuth, async (req, res) => {
+router.get("/:userId", requireAuth, validate({ params: userIdParamSchema }), async (req, res) => {
     try {
-        const userId = req.session.userId;
-        const conversations = await getUserConversationsService(userId);
+        const sessinonUserId = req.session.userId;
+        const userId = req.params.userId;
+
+        if(userId != sessinonUserId){
+            res.status(403).json({error: "Cant read conversations"});
+        }
+
+        const conversations = await getUserConversationsService(sessinonUserId);
 
         res.json({ conversations });
 
@@ -58,18 +61,18 @@ router.get("/:userId", requireAuth, async (req, res) => {
 });
 
 
-router.post("/:conversationId/read", requireAuth, async (req, res) => {
+router.patch("/:conversationId/read", requireAuth, validate({ params: conversationIdParamSchema }), async (req, res) => {
     try {
-        console.log("SESSION:", req.session);
 
         const userId = req.session.userId;
-        const conversationId = Number(req.params.conversationId);
 
-        if (!conversationId) {
-            return res.status(400).json({ error: "Invalid conversationId" });
-        }
+        const conversationId = parseInt(req.params.conversationId);
 
         const response = await updateLastConversationReadAtService(userId, conversationId);
+
+        if (!response) {
+            return res.status(404).json({ error: `The conversationId: ${conversationId} doesn't exist ` });
+        }
 
         return res.status(200).json({
             message: `Conversation: ${conversationId} last read at updated`

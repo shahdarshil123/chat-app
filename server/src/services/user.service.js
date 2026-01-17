@@ -1,4 +1,4 @@
-import { checkUserExistsByEmail, checkUserExistsByUsername, createUser, getUserById, updateUserLastSeen, getLastSeen, searchUsers } from '../db/users.js';
+import { checkUserExistsByEmail, checkUserExistsByUsername, createUser, getUserById, updateUserLastSeen, getLastSeen, searchUsers, getUserByEmail, getUserByUsername } from '../db/users.js';
 
 export async function getUserByIdService(userId) {
     if (!userId) return;
@@ -9,6 +9,47 @@ export async function getUserByIdService(userId) {
 
     return user;
 };
+
+export async function getUserByEmailService(emailId){
+    if(!emailId) return;
+
+    const user = await getUserByEmail(emailId);
+
+    if(!user) return;
+
+    return user;
+}
+
+export async function getUserByUsernameService(username){
+    if(!username) return;
+
+    const user = await getUserByUsername(username);
+
+    if(!user) return;
+
+    return user;
+}
+
+export async function checkUserExistsByEmailService(email){
+    if(!email) return false;
+    const emailCheck = await checkUserExistsByEmail(email);
+
+    if (emailCheck){
+        return true;
+    }
+    return false;
+}
+
+export async function checkUserExistsByUsernameService(username){
+    if(!username) return false;
+
+    const usernameCheck = await checkUserExistsByUsername(username);
+
+    if (usernameCheck){
+        return true;
+    }
+    return false;
+}
 
 export async function createUserService(username, email, password, displayName) {
 
@@ -58,9 +99,7 @@ export async function searchUsersService({
 }) {
     if (!query || !query.trim()) return [];
 
-    console.log("In search user service");
     const users = await searchUsers(currentUserId, query, limit);
-    console.log(users);
 
     return users;
 }

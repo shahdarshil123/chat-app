@@ -12,7 +12,7 @@ export async function fetchMessages({
     }
 
     if (version === MESSAGE_API_VERSION_ENUM.V1){
-        console.log("fetching messages using API version: v1");
+        // console.log("fetching messages using API version: v1");
         const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/${version}/message/${conversationId}/messages`,
       { credentials: "include" });
 
@@ -33,7 +33,7 @@ const params = new URLSearchParams();
 if (limit) params.set("limit", limit);
 if (before) params.set("before", before);
 
-console.log("fetching messages using API version: v2");
+// console.log("fetching messages using API version: v2");
 const res = await fetch(
     `${import.meta.env.VITE_API_BASE_URL}/api/${version}/message/${conversationId}/messages?${params}`,
     {credentials: "include"}

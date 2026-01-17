@@ -1,26 +1,24 @@
 import express from 'express';
-import { getMessageServiceV2, sendMessageService } from '../../services/message.service.js';
+import { getMessageServiceV2, sendMessageService, checkUserExistsForConversationService } from '../../services/message.service.js';
 import { requireAuth } from '../../middleware/requireAuth.js';
+import { validate } from '../../middleware/validate.js';
+import { conversationIdParamSchema, sendMessageBodySchema, getMessagesV2QuerySchema } from '../../schemas/messages.schema.js';
 
 const router = express.Router();
 
-router.post("/:conversationId/messages", requireAuth, async (req, res) => {
+router.post("/:conversationId/messages", requireAuth, validate({params: conversationIdParamSchema}), validate({body: sendMessageBodySchema}), async (req, res) => {
     try {
-
-        if (!req.body.content || req.body.content.trim().length === 0) {
-            return res.status(400).json({ error: 'Message content is required' });
-        }
-        if(!req.params.conversationId){
-            return res.status(400).json({ error: 'Conversation Id is required' });
-        }
-        if(!req.session?.userId){
-            return res.status(400).json({ error: 'User Id is required' });
-        }
 
         const conversationId = Number(req.body.conversationId);
         const senderId = req.session?.userId;
         const content = req.body.content;
 
+        const IsSenderMember = await checkUserExistsForConversationService(senderId, conversationId);
+        
+        if(!IsSenderMember){
+            return res.status(403).json({error: `Sender doesn't exist for conversation`});
+        }
+        
         const message = await sendMessageService(
             conversationId,
             senderId,
@@ -35,12 +33,12 @@ router.post("/:conversationId/messages", requireAuth, async (req, res) => {
     }
 });
 
-router.get("/:conversationId/messages", requireAuth, async (req, res) => {
+router.get("/:conversationId/messages", requireAuth, validate({params: conversationIdParamSchema}), validate({query: getMessagesV2QuerySchema}), async (req, res) => {
     try {
 
-        if (!req.params.conversationId || req.params.conversationId === undefined) {
-            res.status(400).json({ error: "conversationId not provided" });
-        }
+        // if (!req.params.conversationId || req.params.conversationId === undefined) {
+        //     res.status(400).json({ error: "conversationId not provided" });
+        // }
 
         const conversationId = parseInt(req.params.conversationId)
         const limit = Math.min(Number(req.query.limit) || 20, 50);
@@ -55,7 +53,7 @@ router.get("/:conversationId/messages", requireAuth, async (req, res) => {
         );
 
         if (!messages) {
-            res.status(400).json({ error: 'Failed to get message' });
+            res.status(404).json({ error: 'Failed to get message' });
         }
 
         res.status(200).json({

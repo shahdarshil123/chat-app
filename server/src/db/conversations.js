@@ -163,7 +163,7 @@ export async function createConversation(currentUserId, targetUserId) {
 
 
 export async function updateLastConversationReadAt(userId, conversationId) {
-    await prisma.conversationMember.update({
+    return await prisma.conversationMember.update({
         where: {
             conversationId_userId: {
                 conversationId,
@@ -194,3 +194,22 @@ export async function updateConversationUpdateAt(conversationId) {
     });
 }
 
+export async function getConversationById(conversationId) {
+    return await prisma.conversation.findUnique({
+        where: { id: conversationId },
+        select: {
+            id: true,
+        }
+    });
+}
+
+export async function checkUserExistsInConversation(userId, conversationId){
+    return await prisma.conversationMember.findUnique({
+        where: {conversationId_userId: {conversationId: conversationId,
+                userId: userId,
+        }},
+        select: {conversationId: true,
+            userId: true,
+        }
+    })
+}

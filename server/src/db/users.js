@@ -31,6 +31,12 @@ export async function getUserByEmail(email) {
     });
 }
 
+export async function getUserByUsername(username) {
+    return await prisma.user.findUnique({
+        where: { username },
+    });
+}
+
 export async function checkUserExistsByEmail(email) {
     const user = await prisma.user.findUnique({
         where: { email: email },
@@ -46,7 +52,7 @@ export async function checkUserExistsByUsername(username) {
         where: { username: username },
         select: { id: true }
     });
-    console.log(user);
+    // console.log(user);
     const check = (user === undefined || user === null) ? false : true;
     return check;
 }
@@ -76,10 +82,15 @@ export async function updateUserLastSeen(userId) {
         where: { id: userId },
         data: {
             lastSeen: new Date()
-        }
+        },
+        select: {
+                id: true,
+                lastSeen: true,
+                displayName: true,
+            }
     });
 
-    console.log(user);
+    // console.log(user);
     return user;
 
 }
