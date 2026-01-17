@@ -60,30 +60,6 @@ registry.registerPath({
     }
 });
 
-// POST /create
-registry.registerPath({
-    method: 'post',
-    path: '/api/v1/user/create',
-    tags: ['Users'],
-    summary: 'Create a new user (Admin)',
-    security: [{ cookieAuth: [] }],
-    request: {
-        body: {
-            content: { 'application/json': { schema: createUserSchema } }
-        }
-    },
-    responses: {
-        200: {
-            description: 'User created',
-            content: {
-                'application/json': {
-                    schema: z.object({ user: PublicUserSchema })
-                }
-            }
-        },
-        400: { description: 'Validation Error' }
-    }
-});
 
 // GET /:id
 registry.registerPath({
