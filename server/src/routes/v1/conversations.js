@@ -18,13 +18,13 @@ router.post("/direct/:userId", requireAuth, validate({params: userIdParamSchema}
             return res.status(404).json({error: `Source UserId: ${currentUserId} not valid. `});
         }
 
+        const targetUserId = Number(req.params.userId);
+
         if (!Number.isInteger(targetUserId)) {
             return res.status(400).json({ error: "Invalid targetUserId" });
         }
-
-        const targetUserId = Number(req.params.userId);
         
-        const targetUser = await getUserByIdService(userId);
+        const targetUser = await getUserByIdService(targetUserId);
         if(!targetUser){
             return res.status(404).json({error: `UserId: ${targetUserId} not valid. `});
         }
@@ -51,7 +51,7 @@ router.get("/:userId", requireAuth, validate({params: userIdParamSchema}),  asyn
         const userId = req.session.userId;
 
         const user = await getUserByIdService(userId);
-        console.log(user);
+        // console.log(user);
         if(!user){
             return res.status(404).json({error: `UserId: ${userId} not valid. `});
         }
