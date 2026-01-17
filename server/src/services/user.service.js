@@ -78,9 +78,7 @@ export async function searchUsersService({
 }) {
     if (!query || !query.trim()) return [];
 
-    console.log("In search user service");
     const users = await searchUsers(currentUserId, query, limit);
-    console.log(users);
 
     return users;
 }

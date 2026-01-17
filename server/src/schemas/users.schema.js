@@ -56,7 +56,8 @@ registry.registerPath({
                 }
             }
         },
-        401: { description: 'Unauthorized' }
+        401: { description: 'Unauthorized' },
+        500: {description: "Internal Server Error"}
     }
 });
 
@@ -64,7 +65,7 @@ registry.registerPath({
 // GET /:id
 registry.registerPath({
     method: 'get',
-    path: '/api/v1/user/{id}',
+    path: '/api/v1/user/{:id}',
     tags: ['Users'],
     summary: 'Get user details by ID',
     security: [{ cookieAuth: [] }],
@@ -80,14 +81,16 @@ registry.registerPath({
                 }
             }
         },
-        404: { description: 'User not found' }
+        404: { description: 'User not found' },
+        403: {description: 'Forbidden Request'},
+        500: {description: "Internal Server Error"}
     }
 });
 
-// POST /:id/last-seen
+// PATCH /:id/last-seen
 registry.registerPath({
-    method: 'post',
-    path: '/api/v1/user/{id}/last-seen',
+    method: 'patch',
+    path: '/api/v1/user/{:id}/last-seen',
     tags: ['Users'],
     summary: 'Update user last seen',
     security: [{ cookieAuth: [] }],
@@ -100,14 +103,16 @@ registry.registerPath({
             content: {
                 'application/json': { schema: PublicUserSchema }
             }
-        }
+        },
+        403: {description: 'Forbidden Request'},
+        500: {description: "Internal Server Error"}
     }
 });
 
 // GET /:id/last-seen
 registry.registerPath({
     method: 'get',
-    path: '/api/v1/user/{id}/last-seen',
+    path: '/api/v1/user/{:id}/last-seen',
     tags: ['Users'],
     summary: 'Get user last seen status',
     security: [{ cookieAuth: [] }],
@@ -121,6 +126,8 @@ registry.registerPath({
                 'application/json': { schema: PublicUserSchema }
             }
         },
-        404: { description: 'User not found' }
+        404: { description: 'User not found' },
+        403: {description: 'Forbidden Request'},
+        500: {description: "Internal Server Error"}
     }
 });
