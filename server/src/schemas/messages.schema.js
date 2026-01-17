@@ -12,6 +12,18 @@ const messageSenderSchema = z.object({
     displayName: z.string().openapi({ example: "Alice Smith" })
 });
 
+export const getMessagesV2QuerySchema = z.object({
+    limit: z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(50)
+        .optional()
+        .default(20), // Validates strict range 1-50
+    before: z.string().datetime().optional(), // Validates ISO 8601 Date string
+    after: z.string().datetime().optional(),  // Validates ISO 8601 Date string
+})
+
 const publicMessageSchema = z.object({
     id: z.number().openapi({ example: 501 }),
     conversationId: z.number().openapi({ example: 101 }),

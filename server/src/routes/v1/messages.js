@@ -1,8 +1,6 @@
 import express from 'express';
 import { sendMessageService, getMessageServiceV1, deleteMessageService, checkUserExistsForConversationService, getMessageByIdService } from '../../services/message.service.js';
 import { requireAuth } from '../../middleware/requireAuth.js';
-import { getConversationByIdService } from '../../services/conversation.service.js';
-import { getUserByIdService } from '../../services/user.service.js';
 import { validate } from '../../middleware/validate.js';
 import {conversationIdParamSchema, sendMessageBodySchema, deleteMessageParamSchema} from '../../schemas/messages.schema.js';
 
