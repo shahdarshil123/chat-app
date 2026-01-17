@@ -1,8 +1,11 @@
-import { getUserConversations, getOrCreateDirectConversation, updateLastConversationReadAt, createConversation, findDirectConversation } from "../db/conversations.js";
-
+import { getUserConversations, getOrCreateDirectConversation, updateLastConversationReadAt, createConversation, findDirectConversation, getConversationById } from "../db/conversations.js";
+import { getUserById } from "../db/users.js";
 
 export async function getUserConversationsService(userId) {
     if (!userId) return;
+
+    const user = await getUserById(userId);
+    if(!user) return;
 
     const conversations = await getUserConversations(userId);
 
@@ -44,6 +47,14 @@ export async function createConversationService(currentUserId, targetUserId) {
 }
 
 export async function updateLastConversationReadAtService(userId, conversationId) {
+
+    if (!userId || !conversationId) return;
+
+    const conversation = await getConversationById(conversationId);
+    console.log(conversation);
+
+    if(!conversation) return;
+
     const response = await updateLastConversationReadAt(userId, conversationId);
 
     if (!response) return;

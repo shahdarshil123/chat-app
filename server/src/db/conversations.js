@@ -194,3 +194,11 @@ export async function updateConversationUpdateAt(conversationId) {
     });
 }
 
+export async function getConversationById(conversationId) {
+    return await prisma.conversation.findUnique({
+        where: { id: conversationId },
+        select: {
+            id: true,
+        }
+    });
+}
