@@ -137,7 +137,11 @@ export async function checkUserExistsForConversationService(userId, conversation
 
     const conversationMember = await checkUserExistsInConversation(userId, conversationId);
 
-    return conversationMember;
+    if(conversationMember){
+        return true;
+    }
+    
+    return false;
 }
 
 export async function getMessageByIdService(messageId){
