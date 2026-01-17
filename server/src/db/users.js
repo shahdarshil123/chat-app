@@ -82,7 +82,12 @@ export async function updateUserLastSeen(userId) {
         where: { id: userId },
         data: {
             lastSeen: new Date()
-        }
+        },
+        select: {
+                id: true,
+                lastSeen: true,
+                displayName: true,
+            }
     });
 
     console.log(user);

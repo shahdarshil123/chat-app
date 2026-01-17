@@ -1,25 +1,17 @@
 import express from 'express';
 import { requireAuth } from '../../middleware/requireAuth.js';
-import { createUserService, getLastSeenService, getUserByEmailService, getUserByIdService, getUserByUsernameService, searchUsersService, updateUserLastSeenService } from '../../services/user.service.js';
+import { getLastSeenService, getUserByIdService, searchUsersService, updateUserLastSeenService } from '../../services/user.service.js';
 import { validate } from '../../middleware/validate.js';
-import { searchUserSchema,createUserSchema, userIdParamSchema } from '../../schemas/users.schema.js';
+import { searchUserSchema, userIdParamSchema } from '../../schemas/users.schema.js';
 
 const router = express.Router();
 
 router.get("/search", requireAuth, validate({ query: searchUserSchema }), async (req, res) => {
     try {
-        console.log(req.query);
         
         const {query}  = req.query;
         const currentUserId = req.session?.userId;
 
-        console.log("Running the search API");
-        console.log(query);
-        console.log(currentUserId);
-
-        if (!currentUserId) {
-            return res.status(401).send("Not authenticated");
-        }
 
         if (!query || !query.trim()) {
             return res.json([]);
@@ -30,8 +22,6 @@ router.get("/search", requireAuth, validate({ query: searchUserSchema }), async 
             currentUserId,
             limit: 10,
         });
-
-        console.log(users);
 
         res.json(users);
     } catch (err) {
@@ -44,7 +34,13 @@ router.get("/search", requireAuth, validate({ query: searchUserSchema }), async 
 
 router.get('/:id', requireAuth, validate({params: userIdParamSchema}), async (req, res) => {
     try {
-        const userId = parseInt(req.params.id);
+        const userId = parseInt(req.params?.id);
+        const sessionUserId = req.session?.userId;
+
+        if (userId !== sessionUserId) {
+            return res.status(403).json({ error: "You can only get your own details" });
+        }
+
         const user = await getUserByIdService(userId);
         if (!user) {
             return res.status(404).json({
@@ -60,18 +56,19 @@ router.get('/:id', requireAuth, validate({params: userIdParamSchema}), async (re
 });
 
 
-router.post("/:id/last-seen", requireAuth, validate({params: userIdParamSchema}), async (req, res) => {
+router.patch("/:id/last-seen", requireAuth, validate({params: userIdParamSchema}), async (req, res) => {
     try {
         const userId = parseInt(req.params.id);
+        const sessionUserId = req.session?.userId;
 
-        if (!userId) {
-            return res.status(400).json({ error: "userId is required" });
+        if (userId !== sessionUserId) {
+            return res.status(403).json({ error: "You can only update your own status" });
         }
 
         const updated = await updateUserLastSeenService(userId);
 
         if (!updated) {
-            res.status(500).json({ error: 'Failed to create the user' });
+            res.status(404).json({ error: 'User not found' });
         }
 
         res.json(updated);
@@ -84,6 +81,11 @@ router.post("/:id/last-seen", requireAuth, validate({params: userIdParamSchema})
 router.get("/:id/last-seen", requireAuth, validate({params: userIdParamSchema}), async (req, res) => {
     try {
         const userId = parseInt(req.params.id);
+        const sessionUserId = req.session?.userId;
+
+        if (userId !== sessionUserId) {
+            return res.status(403).json({ error: "You can only see your own last seen" });
+        }
 
         const user = await getLastSeenService(userId);
 
