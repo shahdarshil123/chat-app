@@ -3,7 +3,7 @@ import { userLoginService, registerUser, resetPasswordService, forgotPasswordSer
 import { verifyEmail } from '../../services/emailVerification.service.js';
 import { validate } from '../../middleware/validate.js';
 import { loginSchema, registerSchema, resetPasswordSchema, forgotPasswordSchema, verifyEmailSchema} from "../../schemas/auth.schema.js";
-import { getUserByEmailService, getUserByUsernameService } from '../../services/user.service.js';
+import { checkUserExistsByUsernameService, getUserByEmailService, getUserByUsernameService, checkUserExistsByEmailService } from '../../services/user.service.js';
 
 const router = express.Router();
 
@@ -98,12 +98,12 @@ router.post("/register", validate({body: registerSchema}), async (req, res) => {
             return res.status(400).send("Password must be at least 6 characters");
         }
 
-        const userByEmail = await getUserByEmailService(email);
+        const userByEmail = await checkUserExistsByEmailService(email);
         if(userByEmail){
             return res.status(409).json({error: `User with email:${email} already exists`});
         }
         
-        const userByUsername = await getUserByUsernameService(username);
+        const userByUsername = await checkUserExistsByUsernameService(username);
         if(userByUsername){
             return res.status(409).json({error: `User with username: ${username} already exists`});
         }
