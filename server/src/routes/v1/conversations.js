@@ -66,16 +66,7 @@ router.patch("/:conversationId/read", requireAuth, validate({ params: conversati
 
         const userId = req.session.userId;
 
-        // const user = await getUserByIdService(userId);
-        // if (!user) {
-        //     return res.status(404).json({ error: `UserId: ${userId} not valid. ` });
-        // }
-
         const conversationId = parseInt(req.params.conversationId);
-
-        // if (!conversationId) {
-        //     return res.status(400).json({ error: "Invalid conversationId" });
-        // }
 
         const response = await updateLastConversationReadAtService(userId, conversationId);
 

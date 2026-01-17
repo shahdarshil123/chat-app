@@ -12,8 +12,6 @@ router.post('/login', validate({body: loginSchema}), async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        console.log(email, password);
-
         if (!email || !password) {
             return res.status(400).json({
                 error: 'Email and password are required'
@@ -21,7 +19,6 @@ router.post('/login', validate({body: loginSchema}), async (req, res) => {
         }
 
         const user = await userLoginService(email, password);
-        console.log(user);
 
         if (!user) {
             return res.status(401).json({ error: 'Invalid credentials' });
@@ -31,7 +28,6 @@ router.post('/login', validate({body: loginSchema}), async (req, res) => {
 
         req.session.save(async (err) => {
             if (err) {
-                console.error('Session save error:', err);
                 return res.status(500).json({ error: 'Session save failed' });
             }
 
@@ -45,7 +41,6 @@ router.post('/login', validate({body: loginSchema}), async (req, res) => {
         });
     }
     catch (error) {
-        console.error('Login error:', error);
         res.status(500).json({ error: 'Login failed' });
     }
 });
@@ -55,7 +50,6 @@ router.post("/logout", (req, res) => {
 
     req.session.destroy(err => {
         if (err) {  
-            console.error("Logout error:", err);
             return res.status(500).json({ error: "Logout failed" });
         }
 
@@ -134,7 +128,6 @@ router.post("/register", validate({body: registerSchema}), async (req, res) => {
                 .send("User with this email or username already exists");
         }
 
-        console.error("Register error:", err);
         return res.status(500).send("Internal server error");
     }
 });
@@ -142,8 +135,6 @@ router.post("/register", validate({body: registerSchema}), async (req, res) => {
 router.post("/reset-password", validate({body: resetPasswordSchema}), async (req, res) => {
     try {
         const { token, newPassword } = req.body;
-        console.log(token);
-        console.log(newPassword);
         await resetPasswordService({
             token,
             password: newPassword,
@@ -154,8 +145,6 @@ router.post("/reset-password", validate({body: resetPasswordSchema}), async (req
             message: "Password reset successfully",
         });
     } catch (err) {
-        console.error("Reset password error:", err.message);
-
         res.status(400).json({
             error: err.message,
         });

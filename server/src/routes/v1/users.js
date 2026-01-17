@@ -25,7 +25,6 @@ router.get("/search", requireAuth, validate({ query: searchUserSchema }), async 
 
         res.json(users);
     } catch (err) {
-        console.error("User search error:", err);
         res.status(500).send("Internal server error");
     }
 });
@@ -50,7 +49,6 @@ router.get('/:id', requireAuth, validate({params: userIdParamSchema}), async (re
         res.json({ user });
     }
     catch (error) {
-        console.error('Get user error:', error);
         res.status(500).json({ error: 'Failed to get the user' });
     }
 });
@@ -73,7 +71,6 @@ router.patch("/:id/last-seen", requireAuth, validate({params: userIdParamSchema}
 
         res.json(updated);
     } catch (error) {
-        console.error("Update lastSeen error:", error);
         res.status(500).json({ error: "Failed to update lastSeen" });
     }
 });
@@ -95,7 +92,6 @@ router.get("/:id/last-seen", requireAuth, validate({params: userIdParamSchema}),
 
         res.json(user);
     } catch (error) {
-        console.error("Get lastSeen error:", error);
         res.status(500).json({ error: "Failed to get lastSeen" });
     }
 });

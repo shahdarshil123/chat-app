@@ -51,11 +51,9 @@ export async function updateLastConversationReadAtService(userId, conversationId
     if (!userId || !conversationId) return;
 
     const conversation = await getConversationById(conversationId);
-    console.log(conversation);
     if(!conversation) return;
 
     const response = await updateLastConversationReadAt(userId, conversationId);
-    console.log(response);
     if (!response) return;
 
     return response;
