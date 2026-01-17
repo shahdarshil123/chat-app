@@ -1,4 +1,4 @@
-import { checkUserExistsByEmail, checkUserExistsByUsername, createUser, getUserById, updateUserLastSeen, getLastSeen, searchUsers } from '../db/users.js';
+import { checkUserExistsByEmail, checkUserExistsByUsername, createUser, getUserById, updateUserLastSeen, getLastSeen, searchUsers, getUserByEmail, getUserByUsername } from '../db/users.js';
 
 export async function getUserByIdService(userId) {
     if (!userId) return;
@@ -9,6 +9,26 @@ export async function getUserByIdService(userId) {
 
     return user;
 };
+
+export async function getUserByEmailService(emailId){
+    if(!emailId) return;
+
+    const user = await getUserByEmail(emailId);
+
+    if(!user) return;
+
+    return user;
+}
+
+export async function getUserByUsernameService(username){
+    if(!username) return;
+
+    const user = await getUserByUsername(username);
+
+    if(!user) return;
+
+    return user;
+}
 
 export async function createUserService(username, email, password, displayName) {
 
