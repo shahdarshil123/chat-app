@@ -4,7 +4,7 @@ export default function ConversationHeader({
     currentUserId
 }) {
     if (!conversation) return null;
-    console.log(conversation);
+    // console.log(conversation);
     const otherUser = conversation.members?.find(
   m => m.userId !== currentUserId
 );
@@ -14,9 +14,9 @@ const isOnline = otherUser
   : false;
     
 
-    console.log("onlineUsers:", [...onlineUsers]);
-    console.log("conversation.id:", conversation.id);
-    console.log("members:", conversation.members);
+    // console.log("onlineUsers:", [...onlineUsers]);
+    // console.log("conversation.id:", conversation.id);
+    // console.log("members:", conversation.members);
     return (
         <div className="header">
             <div className="avatar">{conversation.avatar}</div>

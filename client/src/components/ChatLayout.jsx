@@ -23,7 +23,7 @@ import { useConversations } from "../hooks/useConversations.js";
 ================================ */
 export default function ChatLayout({ currentUser, onLogout }) {
   const navigate = useNavigate();
-  console.log("Message API version:", MESSAGE_API_VERSION);
+  // console.log("Message API version:", MESSAGE_API_VERSION);
   const CURRENT_USER_ID = currentUser.id;
 
   // const chatContainerRef = useRef(null);
@@ -96,10 +96,10 @@ export default function ChatLayout({ currentUser, onLogout }) {
   });
 
   async function sendMessagePayload({ conversationId, content }) {
-    console.log("➡️ Sending to server:", {
-      conversationId,
-      content,
-    });
+    // console.log("➡️ Sending to server:", {
+    //   conversationId,
+    //   content,
+    // });
 
     const res = await fetch(
       `${import.meta.env.VITE_API_BASE_URL}/api/${MESSAGE_API_VERSION}/message/${conversationId}/messages`,
@@ -111,7 +111,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
       }
     );
 
-    console.log("⬅️ Server response status:", res.status);
+    // console.log("⬅️ Server response status:", res.status);
 
     return res;
   }
@@ -172,7 +172,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
         `${import.meta.env.VITE_API_BASE_URL}/api/${CONVERSATION_API_VERSION}/conversation/${CURRENT_USER_ID}`, { credentials: "include" }
       );
       const json = await res.json();
-      console.log(json);
+      // console.log(json);
 
       const mapped = json.conversations.map(item => {
         const conv = item.conversation;

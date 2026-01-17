@@ -52,7 +52,7 @@ export async function checkUserExistsByUsername(username) {
         where: { username: username },
         select: { id: true }
     });
-    console.log(user);
+    // console.log(user);
     const check = (user === undefined || user === null) ? false : true;
     return check;
 }
@@ -90,7 +90,7 @@ export async function updateUserLastSeen(userId) {
             }
     });
 
-    console.log(user);
+    // console.log(user);
     return user;
 
 }
