@@ -24,15 +24,15 @@ const publicMessageSchema = z.object({
     sender: messageSenderSchema.optional()
 });
 
-const sendMessageBodySchema = z.object({
+export const sendMessageBodySchema = z.object({
     content: z.string().min(1, "Message content is required").openapi({ example: "Hello there!" })
 });
 
-const conversationIdParamSchema = z.object({
+export const conversationIdParamSchema = z.object({
     conversationId: z.string().regex(/^\d+$/, "ID must be a number").openapi({ example: "101" })
 });
 
-const deleteMessageParamSchema = z.object({
+export const deleteMessageParamSchema = z.object({
     conversationId: z.string().regex(/^\d+$/, "Conversation ID must be a number").openapi({ example: "101" }),
     messageId: z.string().regex(/^\d+$/, "Message ID must be a number").openapi({ example: "501" })
 });

@@ -3,10 +3,12 @@ import { sendMessageService, getMessageServiceV1, deleteMessageService, checkUse
 import { requireAuth } from '../../middleware/requireAuth.js';
 import { getConversationByIdService } from '../../services/conversation.service.js';
 import { getUserByIdService } from '../../services/user.service.js';
+import { validate } from '../../middleware/validate.js';
+import {conversationIdParamSchema, sendMessageBodySchema, deleteMessageParamSchema} from '../../schemas/messages.schema.js';
 
 const router = express.Router();
 
-router.post("/:conversationId/messages", requireAuth, async (req, res) => {
+router.post("/:conversationId/messages", requireAuth, validate({params: conversationIdParamSchema}), validate({body: sendMessageBodySchema}), async (req, res) => {
     try {
         if (!req.body.content || req.body.content.trim().length === 0) {
             return res.status(400).json({ error: 'Message content is required' });
@@ -53,7 +55,7 @@ router.post("/:conversationId/messages", requireAuth, async (req, res) => {
     }
 });
 
-router.get("/:conversationId/messages", requireAuth, async (req, res) => {
+router.get("/:conversationId/messages", requireAuth, validate({params: conversationIdParamSchema}), async (req, res) => {
     try {
         const userId = req.session?.userId;
         
@@ -93,7 +95,7 @@ router.get("/:conversationId/messages", requireAuth, async (req, res) => {
     }
 });
 
-router.delete('/:conversationId/messages/:messageId', requireAuth, async (req, res) => {
+router.delete('/:conversationId/messages/:messageId', requireAuth, validate({params: deleteMessageParamSchema}),  async (req, res) => {
     try {
         const conversationId = Number(req.params.conversationId);
         const messageId = Number(req.params.messageId);
