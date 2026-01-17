@@ -106,12 +106,12 @@ router.post("/register", validate({body: registerSchema}), async (req, res) => {
 
         const userByEmail = await getUserByEmailService(email);
         if(userByEmail){
-            return res.status(403).json({error: `User with email:${email} already exists`});
+            return res.status(409).json({error: `User with email:${email} already exists`});
         }
         
         const userByUsername = await getUserByUsernameService(username);
         if(userByUsername){
-            return res.status(403).json({error: `User with username: ${username} already exists`});
+            return res.status(409).json({error: `User with username: ${username} already exists`});
         }
 
         // 2️⃣ Register user
