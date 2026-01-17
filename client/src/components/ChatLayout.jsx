@@ -241,7 +241,7 @@ export default function ChatLayout({ currentUser, onLogout }) {
 
       await fetch(
         `${import.meta.env.VITE_API_BASE_URL}/api/${CONVERSATION_API_VERSION}/conversation/${activeId}/read`,
-        { method: "POST", credentials: "include" }
+        { method: "PATCH", credentials: "include" }
       );
     }, 300); // small delay ensures render completed
 

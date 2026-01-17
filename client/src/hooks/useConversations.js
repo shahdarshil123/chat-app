@@ -66,7 +66,7 @@ export function useConversations({ currentUserId, apiVersion }) {
   async function markAsRead(conversationId) {
     await fetch(
       `${import.meta.env.VITE_API_BASE_URL}/api/${apiVersion}/conversation/${conversationId}/read`,
-      { method: "POST", credentials: "include" }
+      { method: "PATCH", credentials: "include" }
     );
 
     setUnreadBoundary(prev => ({

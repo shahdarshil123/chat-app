@@ -163,7 +163,7 @@ export async function createConversation(currentUserId, targetUserId) {
 
 
 export async function updateLastConversationReadAt(userId, conversationId) {
-    await prisma.conversationMember.update({
+    return await prisma.conversationMember.update({
         where: {
             conversationId_userId: {
                 conversationId,

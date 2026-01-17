@@ -28,30 +28,12 @@ export async function createUser(data) {
 export async function getUserByEmail(email) {
     return await prisma.user.findUnique({
         where: { email },
-        select: {
-            id: true,
-            username: true,
-            email: true,
-            displayName: true,
-            avatarUrl: true,
-            status: true,
-            createdAt: true,
-        }
     });
 }
 
 export async function getUserByUsername(username) {
     return await prisma.user.findUnique({
         where: { username },
-        select: {
-            id: true,
-            username: true,
-            email: true,
-            displayName: true,
-            avatarUrl: true,
-            status: true,
-            createdAt: true,
-        }
     });
 }
 
@@ -121,15 +103,6 @@ export async function checkUserExists(email, username) {
                 { username },
             ],
         },
-        select: {
-            id: true,
-            username: true,
-            email: true,
-            displayName: true,
-            avatarUrl: true,
-            status: true,
-            createdAt: true,
-        }
     });
 
     return user;

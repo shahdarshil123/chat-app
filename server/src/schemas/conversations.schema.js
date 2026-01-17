@@ -139,9 +139,9 @@ registry.registerPath({
     }
 });
 
-// POST /:conversationId/read
+// PATCH /:conversationId/read
 registry.registerPath({
-    method: 'post',
+    method: 'patch',
     path: '/api/v1/conversation/{conversationId}/read',
     tags: ['Conversations'],
     summary: 'Mark conversation as read',
